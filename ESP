@@ -1,0 +1,216 @@
+local DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+local FillTransparency = 0.5
+local OutlineTransparency = 0 -- Initially set to 0 for a visible outline
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local connections = {}
+
+local Storage = Instance.new("Folder")
+Storage.Parent = CoreGui
+Storage.Name = "Highlight_Storage"
+
+local highlightActive = true -- Set to true to enable highlights immediately
+local outlineVisible = true -- To track if outlines are visible
+
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+local main = Instance.new("Frame")
+local label = Instance.new("TextLabel")
+local ToggleHighlightButton = Instance.new("TextButton")
+local ToggleOutlineButton = Instance.new("TextButton") -- Button to toggle outline visibility
+
+ScreenGui.Parent = CoreGui
+
+main.Name = "main"
+main.Parent = ScreenGui
+main.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Black
+main.BackgroundTransparency = 1 -- Make the background of the main frame transparent
+main.Position = UDim2.new(0.40427351, 0, 0.34591195, 0)
+main.Size = UDim2.new(0, 200, 0, 150) -- Adjust height for the buttons
+main.Active = true
+main.Draggable = true
+
+label.Name = "label"
+label.Parent = main
+label.BackgroundColor3 = Color3.fromRGB(75, 0, 130) -- Dark Purple
+label.Size = UDim2.new(0, 200, 0, 20)
+label.Font = Enum.Font.SourceSans
+label.Text = "Highlight GUI"
+label.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color for contrast
+label.TextScaled = true
+label.TextSize = 5.000
+label.TextWrapped = true
+
+-- Positioning the outline button with some separation
+ToggleOutlineButton.Name = "ToggleOutlineButton"
+ToggleOutlineButton.Parent = main
+ToggleOutlineButton.BackgroundColor3 = Color3.fromRGB(48, 25, 52) -- Very Dark Purple
+ToggleOutlineButton.Position = UDim2.new(0.1, 0, 0.2, 0) -- Position it below the label
+ToggleOutlineButton.Size = UDim2.new(0, 120, 0, 40) -- Set the button size to be larger
+ToggleOutlineButton.Font = Enum.Font.SourceSans
+ToggleOutlineButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color for contrast
+ToggleOutlineButton.TextSize = 20.000 -- Adjusted text size
+ToggleOutlineButton.Text = "Disable Outline" -- Initial text to disable outline
+
+-- Positioning the highlight button below the outline button
+ToggleHighlightButton.Name = "ToggleHighlightButton"
+ToggleHighlightButton.Parent = main
+ToggleHighlightButton.BackgroundColor3 = Color3.fromRGB(48, 25, 52) -- Very Dark Purple
+ToggleHighlightButton.Position = UDim2.new(0.1, 0, 0.5, 0) -- Position it below the outline button with more space
+ToggleHighlightButton.Size = UDim2.new(0, 120, 0, 40) -- Set the button size to be larger
+ToggleHighlightButton.Font = Enum.Font.SourceSans
+ToggleHighlightButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color for contrast
+ToggleHighlightButton.TextSize = 20.000 -- Adjusted text size
+ToggleHighlightButton.Text = "Disable ESP" -- Update button text to reflect that ESP is enabled
+
+-- Function to make a button draggable independently
+local function makeIndependentDraggable(button)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    button.MouseButton1Down:Connect(function(input)
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+        
+        button:GetPropertyChangedSignal("Position"):Wait() -- Prevents immediate reset
+        
+        while dragging do
+            local delta = input.Position - dragStart
+            button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                          startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            wait()
+        end
+    end)
+
+    button.MouseButton1Up:Connect(function()
+        dragging = false
+    end)
+
+    button.MouseLeave:Connect(function()
+        dragging = false
+    end)
+end
+
+makeIndependentDraggable(ToggleOutlineButton) -- Make the outline toggle button independently draggable
+makeIndependentDraggable(ToggleHighlightButton) -- Make the highlight toggle button independently draggable
+
+-- Highlight function with team color retrieval
+local function Highlight(plr)
+    local teamColor
+    if plr.Team then
+        teamColor = plr.Team.TeamColor.Color -- Get the team color dynamically
+    end
+
+    if teamColor then
+        local HighlightInstance = Instance.new("Highlight")
+        HighlightInstance.Name = plr.Name
+        HighlightInstance.FillColor = teamColor
+        HighlightInstance.DepthMode = DepthMode
+        HighlightInstance.FillTransparency = FillTransparency
+        HighlightInstance.OutlineColor = Color3.fromRGB(255, 255, 255) -- White outline color
+        HighlightInstance.OutlineTransparency = OutlineTransparency -- Set for visibility
+        HighlightInstance.Parent = Storage
+
+        local plrchar = plr.Character
+        if plrchar then
+            HighlightInstance.Adornee = plrchar
+        end
+
+        connections[plr] = plr.CharacterAdded:Connect(function(char)
+            HighlightInstance.Adornee = char
+        end)
+    end
+end
+
+-- Function to apply highlights to all players if ESP is enabled
+local function ApplyHighlights()
+    if highlightActive then
+        for _, player in pairs(Players:GetPlayers()) do
+            if not Storage:FindFirstChild(player.Name) then
+                Highlight(player) -- Highlight any players that are not already highlighted
+            end
+            
+            -- Ensure highlight is updated for existing players
+            local highlightInstance = Storage:FindFirstChild(player.Name)
+            if highlightInstance and player.Character then
+                highlightInstance.Adornee = player.Character -- Update the Adornee to the player's character
+                highlightInstance.OutlineTransparency = outlineVisible and 0 or 1 -- Toggle outline visibility
+            end
+        end
+    end
+end
+
+-- Toggle highlights on button click
+ToggleHighlightButton.MouseButton1Down:Connect(function()
+    highlightActive = not highlightActive -- Toggle the highlight state
+    
+    if highlightActive then
+        ToggleHighlightButton.Text = "Disable ESP" -- Update button text
+        -- Apply highlights for all current players
+        for _, player in pairs(Players:GetPlayers()) do
+            Highlight(player)
+        end
+    else
+        ToggleHighlightButton.Text = "Enable ESP" -- Update button text
+        -- Disable highlights for all players
+        for _, playerHighlight in pairs(Storage:GetChildren()) do
+            playerHighlight:Destroy() -- Remove highlights
+        end
+    end
+end)
+
+-- Toggle outline visibility on button click
+ToggleOutlineButton.MouseButton1Down:Connect(function()
+    outlineVisible = not outlineVisible -- Toggle outline visibility state
+
+    if outlineVisible then
+        ToggleOutlineButton.Text = "Disable Outline" -- Update button text to reflect state
+    else
+        ToggleOutlineButton.Text = "Enable Outline" -- Update button text to reflect state
+    end
+
+    -- Apply the outline visibility change to all highlighted players
+    for _, playerHighlight in pairs(Storage:GetChildren()) do
+        playerHighlight.OutlineTransparency = outlineVisible and 0 or 1 -- Toggle outline visibility
+    end
+end)
+
+-- Monitor player additions/removals
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        if highlightActive then
+            Highlight(plr) -- Highlight the new player if ESP is enabled
+        end
+    end)
+    if highlightActive then
+        Highlight(plr) -- Highlight the player immediately if ESP is enabled
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    local plrname = plr.Name
+    if Storage:FindFirstChild(plrname) then
+        Storage[plrname]:Destroy()
+    end
+    if connections[plr] then
+        connections[plr]:Disconnect()
+    end
+end)
+
+-- Ensure the label is not visible but keep the main frame for positioning the button.
+label.Visible = false -- Hide the label
+
+-- Update highlights continuously if ESP is active
+while true do
+    wait(1) -- Check every second (adjust this delay as needed)
+    ApplyHighlights() -- Check and apply highlights when ESP is active
+end
+
+-- Execute highlight function immediately for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    Highlight(player) -- Highlight all existing players when script runs
+end
+
