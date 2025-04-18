@@ -6,15 +6,10 @@ local TweenService = game:GetService("TweenService")
 
 -- Variables
 local Player = Players.LocalPlayer
-local hitboxActive = true -- Hitbox manipulation is active by default
-local wallCheckActive = true -- Wall check is enabled by default
+local hitboxActive = true -- Hitbox is on by default
+local wallCheckActive = true -- Wall check is on by default
 local defaultSize = 20 -- Default hitbox size
-local defaultTransparency = 100 -- Default transparency (fully transparent)
-
--- Ensure Player exists
-if not Player then
-    error("LocalPlayer not found. Script must run on the client.")
-end
+local defaultTransparency = 100 -- Default transparency (0 to 100, fully transparent)
 
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
@@ -25,7 +20,7 @@ ScreenGui.IgnoreGuiInset = true
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 120, 0, 200)
-MainFrame.Position = UDim2.new(0.5, -60, 0, -60)
+MainFrame.Position = UDim2.new(0.5, -60, 0.5, -60)
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MainFrame.BackgroundTransparency = 0.7
 MainFrame.BorderSizePixel = 0
@@ -108,7 +103,7 @@ local function tweenButton(button, goal, duration)
     tween:Play()
 end
 
--- Particle Creation Function
+-- Particle Effect Function
 local function createParticle(parent, button)
     local particle = Instance.new("Frame")
     particle.Size = UDim2.new(0, 5, 0, 5)
@@ -141,7 +136,7 @@ local function createParticle(parent, button)
     end)
 end
 
--- Wall Check Function (Modified to Target Hitbox)
+-- Accurate Wall Check Function
 local function isPlayerVisible(targetPlayer)
     local camera = workspace.CurrentCamera
     local localChar = Player.Character
@@ -150,14 +145,10 @@ local function isPlayerVisible(targetPlayer)
     if not (localChar and targetChar) then return false end
     
     local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not localRoot then return false end
     
-    if not (localRoot and targetRoot) then return false end
-    
-    -- Raycast to the center of the target's HumanoidRootPart (hitbox)
-    local rayOrigin = camera.CFrame.Position
-    local targetPosition = targetRoot.Position -- Center of the hitbox
-    local rayDirection = targetPosition - rayOrigin
+    -- Parts to check for visibility
+    local partsToCheck = {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
     
     -- Blacklist all player characters except the target
     local blacklist = {}
@@ -174,21 +165,26 @@ local function isPlayerVisible(targetPlayer)
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = blacklist
     
-    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    local rayOrigin = camera.CFrame.Position
     
-    -- Check if the ray hits the target's HumanoidRootPart or passes through unobstructed
-    if not raycastResult then
-        -- No obstruction (clear path to hitbox center)
-        return true
-    elseif raycastResult.Instance == targetRoot then
-        -- Direct hit on the target's HumanoidRootPart (hitbox)
-        return true
-    elseif raycastResult.Instance:IsDescendantOf(targetChar) then
-        -- Hit another part of the target character (e.g., enlarged hitbox edge)
-        return true
+    for _, partName in pairs(partsToCheck) do
+        local part = targetChar:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
+            local partPosition = part.Position
+            local rayDirection = partPosition - rayOrigin
+            local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+            
+            if not raycastResult then
+                -- Ray reached the part unobstructed
+                return true
+            elseif raycastResult.Instance:IsDescendantOf(targetChar) then
+                -- Ray hit any part of the target character
+                return true
+            end
+        end
     end
     
-    -- Hit an environmental obstacle (e.g., wall)
+    -- No rays reached or hit the target
     return false
 end
 
@@ -197,7 +193,6 @@ RunService.RenderStepped:Connect(function()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= Player then
             pcall(function()
-                -- Parse and clamp input values
                 local sizeValue = tonumber(SizeBox.Text:match("%d+")) or defaultSize
                 sizeValue = math.max(1, math.min(10000, sizeValue))
                 
@@ -226,7 +221,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Toggle Button Functionality
+-- Toggle Hitbox Button
 ToggleButton.MouseButton1Click:Connect(function()
     hitboxActive = not hitboxActive
     ToggleButton.Text = hitboxActive and "🔒 Hitbox: ON" or "🔓 Hitbox: OFF"
@@ -258,7 +253,7 @@ ToggleButton.MouseLeave:Connect(function()
     tweenButton(ToggleButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
 end)
 
--- Wall Check Button Functionality
+-- Toggle Wall Check Button
 WallCheckButton.MouseButton1Click:Connect(function()
     wallCheckActive = not wallCheckActive
     WallCheckButton.Text = wallCheckActive and "🛑 Wall Check: ON" or "🛑 Wall Check: OFF"
@@ -276,11 +271,10 @@ WallCheckButton.MouseLeave:Connect(function()
     tweenButton(WallCheckButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
 end)
 
--- Size Text Box Functionality
+-- Size Input
 SizeBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
-        local inputText = SizeBox.Text
-        local newSize = tonumber(inputText:match("%d+"))
+        local newSize = tonumber(SizeBox.Text:match("%d+"))
         if newSize and newSize >= 1 and newSize <= 10000 then
             defaultSize = newSize
             SizeBox.Text = "Size: " .. tostring(defaultSize)
@@ -290,11 +284,10 @@ SizeBox.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- Transparency Text Box Functionality
+-- Transparency Input
 TransparencyBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
-        local inputText = TransparencyBox.Text
-        local newTrans = tonumber(inputText:match("%d+"))
+        local newTrans = tonumber(TransparencyBox.Text:match("%d+"))
         if newTrans and newTrans >= 1 and newTrans <= 100 then
             defaultTransparency = newTrans
             TransparencyBox.Text = "Trans: " .. tostring(defaultTransparency)
@@ -304,17 +297,17 @@ TransparencyBox.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- Dragging Functionality
+-- Dragging GUI
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
     end
 end)
 MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
 end)
@@ -325,14 +318,10 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 MainFrame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
 end)
-
--- Initial Animation
-MainFrame.Position = UDim2.new(0.5, -60, 0.5, 60)
-tweenButton(MainFrame, {Position = UDim2.new(0.5, -60, 0.5, -60)}, 0.5)
 
 -- Cleanup
 Players.PlayerRemoving:Connect(function(player)
