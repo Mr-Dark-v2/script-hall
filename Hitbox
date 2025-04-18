@@ -1,115 +1,342 @@
+-- Services
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+-- Variables
+local Player = Players.LocalPlayer
+local hitboxActive = true -- Hitbox manipulation is active by default
+local wallCheckActive = true -- Wall check is enabled by default
+local defaultSize = 20 -- Default hitbox size
+local defaultTransparency = 100 -- Default transparency (fully transparent)
+
+-- Ensure Player exists
+if not Player then
+    error("LocalPlayer not found. Script must run on the client.")
+end
+
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
-local main = Instance.new("Frame")
-local label = Instance.new("TextLabel")
-local Hitbox = Instance.new("TextButton")
-local TransparencyInput = Instance.new("TextBox")
-local SizeInput = Instance.new("TextBox") -- New TextBox for hitbox size
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "HitboxExpanderGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
 
-ScreenGui.Parent = game.CoreGui
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 120, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -60, 0, -60)
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MainFrame.BackgroundTransparency = 0.7
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
-main.Name = "main"
-main.Parent = ScreenGui
-main.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Black
-main.BackgroundTransparency = 1 -- Make the background of the main frame transparent
-main.Position = UDim2.new(0.404, 0, 0.345, 0)
-main.Size = UDim2.new(0, 200, 0, 180) -- Adjusted height for the new TextBox
-main.Active = true
-main.Draggable = true
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
 
-label.Name = "label"
-label.Parent = main
-label.BackgroundColor3 = Color3.fromRGB(75, 0, 130) -- Dark Purple
-label.Size = UDim2.new(0, 200, 0, 20)
-label.Font = Enum.Font.SourceSans
-label.Text = "Teen Titan GUI"
-label.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color for contrast
-label.TextScaled = true
-label.TextSize = 5.000
-label.TextWrapped = true
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 120, 0, 20)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Hitbox Expander"
+Title.TextColor3 = Color3.fromRGB(200, 0, 200)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 14
+Title.Parent = MainFrame
 
-Hitbox.Name = "Hitbox"
-Hitbox.Parent = main
-Hitbox.BackgroundColor3 = Color3.fromRGB(48, 25, 52) -- Very Dark Purple
-Hitbox.Position = UDim2.new(0.114, 0, 0.6, 0) -- Position it lower to fit the new TextBox
-Hitbox.Size = UDim2.new(0, 90, 0, 40)
-Hitbox.Font = Enum.Font.SourceSans
-Hitbox.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color for contrast
-Hitbox.TextSize = 40.000
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 100, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.BackgroundTransparency = 0.3
+ToggleButton.Text = "🔒 Hitbox: ON"
+ToggleButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 12
+ToggleButton.Parent = MainFrame
 
-TransparencyInput.Name = "TransparencyInput"
-TransparencyInput.Parent = main
-TransparencyInput.BackgroundTransparency = 1 -- Make background transparent
-TransparencyInput.Position = UDim2.new(0.114, 0, 0.4, 0) -- Position it above the button
-TransparencyInput.Size = UDim2.new(0, 90, 0, 30)
-TransparencyInput.Font = Enum.Font.SourceSans
-TransparencyInput.PlaceholderText = "Transparency (1-100)"
-TransparencyInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text for visibility
-TransparencyInput.TextSize = 20
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
 
-SizeInput.Name = "SizeInput" -- New TextBox for hitbox size
-SizeInput.Parent = main
-SizeInput.BackgroundTransparency = 1 -- Make background transparent
-SizeInput.Position = UDim2.new(0.114, 0, 0.1, 0) -- Position it directly above the TransparencyTextBox
-SizeInput.Size = UDim2.new(0, 90, 0, 30)
-SizeInput.Font = Enum.Font.SourceSans
-SizeInput.PlaceholderText = "Size (1-10000)"
-SizeInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text for visibility
-SizeInput.TextSize = 20
+local WallCheckButton = Instance.new("TextButton")
+WallCheckButton.Size = UDim2.new(0, 100, 0, 40)
+WallCheckButton.Position = UDim2.new(0, 10, 0, 70)
+WallCheckButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+WallCheckButton.BackgroundTransparency = 0.3
+WallCheckButton.Text = "🛑 Wall Check: ON"
+WallCheckButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+WallCheckButton.Font = Enum.Font.GothamBold
+WallCheckButton.TextSize = 12
+WallCheckButton.Parent = MainFrame
 
-local hitboxActive = true -- Variable to track the state of the hitbox (set to true to activate immediately)
+local WallCheckCorner = Instance.new("UICorner")
+WallCheckCorner.CornerRadius = UDim.new(0, 8)
+WallCheckCorner.Parent = WallCheckButton
 
--- Default size value
-_G.HeadSize = 20
+local SizeBox = Instance.new("TextBox")
+SizeBox.Size = UDim2.new(0, 80, 0, 20)
+SizeBox.Position = UDim2.new(0, 20, 0, 115)
+SizeBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SizeBox.BackgroundTransparency = 0.5
+SizeBox.Text = "Size: " .. tostring(defaultSize)
+SizeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SizeBox.TextTransparency = 0.5
+SizeBox.Font = Enum.Font.Gotham
+SizeBox.TextSize = 10
+SizeBox.ClearTextOnFocus = false
+SizeBox.Parent = MainFrame
 
--- Initialize the hitboxes for other players immediately
-game:GetService('RunService').RenderStepped:connect(function()
-    if hitboxActive then
-        for _, v in next, game:GetService('Players'):GetPlayers() do
-            if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+local TransparencyBox = Instance.new("TextBox")
+TransparencyBox.Size = UDim2.new(0, 80, 0, 20)
+TransparencyBox.Position = UDim2.new(0, 20, 0, 140)
+TransparencyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TransparencyBox.BackgroundTransparency = 0.5
+TransparencyBox.Text = "Trans: " .. tostring(defaultTransparency)
+TransparencyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TransparencyBox.TextTransparency = 0.5
+TransparencyBox.Font = Enum.Font.Gotham
+TransparencyBox.TextSize = 10
+TransparencyBox.ClearTextOnFocus = false
+TransparencyBox.Parent = MainFrame
+
+-- Animation Function
+local function tweenButton(button, goal, duration)
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(button, tweenInfo, goal)
+    tween:Play()
+end
+
+-- Particle Creation Function
+local function createParticle(parent, button)
+    local particle = Instance.new("Frame")
+    particle.Size = UDim2.new(0, 5, 0, 5)
+    particle.BackgroundColor3 = Color3.fromRGB(200, 0, 200)
+    particle.BorderSizePixel = 0
+    particle.ZIndex = 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = particle
+    local btnPos = button.Position
+    local btnSize = button.Size
+    local randomX = btnPos.X.Offset + math.random(0, btnSize.X.Offset)
+    local randomY = btnPos.Y.Offset + math.random(0, btnSize.Y.Offset)
+    particle.Position = UDim2.new(0, randomX, 0, randomY)
+    particle.Parent = parent
+    local angle = math.random() * 2 * math.pi
+    local dx = math.cos(angle)
+    local dy = math.sin(angle)
+    local distance = 50
+    local targetX = randomX + distance * dx
+    local targetY = randomY + distance * dy
+    local targetPosition = UDim2.new(0, targetX, 0, targetY)
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local positionTween = TweenService:Create(particle, tweenInfo, {Position = targetPosition})
+    local transparencyTween = TweenService:Create(particle, tweenInfo, {BackgroundTransparency = 1})
+    positionTween:Play()
+    transparencyTween:Play()
+    positionTween.Completed:Connect(function()
+        particle:Destroy()
+    end)
+end
+
+-- Wall Check Function (Modified to Target Hitbox)
+local function isPlayerVisible(targetPlayer)
+    local camera = workspace.CurrentCamera
+    local localChar = Player.Character
+    local targetChar = targetPlayer.Character
+    
+    if not (localChar and targetChar) then return false end
+    
+    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    
+    if not (localRoot and targetRoot) then return false end
+    
+    -- Raycast to the center of the target's HumanoidRootPart (hitbox)
+    local rayOrigin = camera.CFrame.Position
+    local targetPosition = targetRoot.Position -- Center of the hitbox
+    local rayDirection = targetPosition - rayOrigin
+    
+    -- Blacklist all player characters except the target
+    local blacklist = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= targetPlayer and p.Character then
+            table.insert(blacklist, p.Character)
+        end
+    end
+    if localChar then
+        table.insert(blacklist, localChar)
+    end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = blacklist
+    
+    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    
+    -- Check if the ray hits the target's HumanoidRootPart or passes through unobstructed
+    if not raycastResult then
+        -- No obstruction (clear path to hitbox center)
+        return true
+    elseif raycastResult.Instance == targetRoot then
+        -- Direct hit on the target's HumanoidRootPart (hitbox)
+        return true
+    elseif raycastResult.Instance:IsDescendantOf(targetChar) then
+        -- Hit another part of the target character (e.g., enlarged hitbox edge)
+        return true
+    end
+    
+    -- Hit an environmental obstacle (e.g., wall)
+    return false
+end
+
+-- Hitbox Manipulation Loop
+RunService.RenderStepped:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player then
+            pcall(function()
+                -- Parse and clamp input values
+                local sizeValue = tonumber(SizeBox.Text:match("%d+")) or defaultSize
+                sizeValue = math.max(1, math.min(10000, sizeValue))
+                
+                local transparencyValue = tonumber(TransparencyBox.Text:match("%d+")) or defaultTransparency
+                transparencyValue = math.max(1, math.min(100, transparencyValue))
+                local adjustedTransparency = transparencyValue / 100
+                
+                local shouldApply = hitboxActive and (not wallCheckActive or isPlayerVisible(player))
+                
+                local root = player.Character.HumanoidRootPart
+                if shouldApply then
+                    root.Size = Vector3.new(sizeValue, sizeValue, sizeValue)
+                    root.Transparency = adjustedTransparency
+                    root.BrickColor = BrickColor.new("Really black")
+                    root.Material = "Neon"
+                    root.CanCollide = false
+                else
+                    root.Size = Vector3.new(2, 2, 2)
+                    root.Transparency = 0
+                    root.BrickColor = BrickColor.new("Medium stone grey")
+                    root.Material = "SmoothPlastic"
+                    root.CanCollide = true
+                end
+            end)
+        end
+    end
+end)
+
+-- Toggle Button Functionality
+ToggleButton.MouseButton1Click:Connect(function()
+    hitboxActive = not hitboxActive
+    ToggleButton.Text = hitboxActive and "🔒 Hitbox: ON" or "🔓 Hitbox: OFF"
+    local targetColor = hitboxActive and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+    tweenButton(ToggleButton, {TextColor3 = targetColor}, 0.3)
+    for i = 1, 5 do
+        createParticle(MainFrame, ToggleButton)
+    end
+    if not hitboxActive then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= Player then
                 pcall(function()
-                    local transparencyValue = tonumber(TransparencyInput.Text) or 100 -- Get user input and convert to number, default to 100
-                    if transparencyValue < 1 then
-                        transparencyValue = 1 -- Minimum value to make it visible
-                    elseif transparencyValue > 100 then
-                        transparencyValue = 100 -- Maximum value
-                    end
-                    local adjustedTransparency = transparencyValue / 100 -- Adjusting for Roblox transparency range (0 to 1)
-
-                    -- Get the size from SizeInput or default to _G.HeadSize
-                    _G.HeadSize = tonumber(SizeInput.Text) or _G.HeadSize 
-
-                    v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize, _G.HeadSize, _G.HeadSize)
-                    v.Character.HumanoidRootPart.Transparency = adjustedTransparency
-                    v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
-                    v.Character.HumanoidRootPart.Material = "Neon"
-                    v.Character.HumanoidRootPart.CanCollide = false
+                    local root = player.Character.HumanoidRootPart
+                    root.Size = Vector3.new(2, 2, 2)
+                    root.Transparency = 0
+                    root.BrickColor = BrickColor.new("Medium stone grey")
+                    root.Material = "SmoothPlastic"
+                    root.CanCollide = true
                 end)
             end
         end
     end
 end)
 
-Hitbox.MouseButton1Down:connect(function()
-    hitboxActive = not hitboxActive -- Toggle the hitbox state
+ToggleButton.MouseEnter:Connect(function()
+    tweenButton(ToggleButton, {Size = UDim2.new(0, 105, 0, 42), BackgroundTransparency = 0.1}, 0.2)
+end)
+ToggleButton.MouseLeave:Connect(function()
+    tweenButton(ToggleButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
+end)
 
-    if hitboxActive then
-        Hitbox.Text = "On" -- Change button text to "On"
-    else
-        for _, v in next, game:GetService('Players'):GetPlayers() do
-            if v.Name ~= game:GetService('Players').LocalPlayer.Name then
-                pcall(function()
-                    v.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 2) -- Resetting to default size
-                    v.Character.HumanoidRootPart.Transparency = 0 -- Reset transparency
-                    v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey") -- Reset color
-                    v.Character.HumanoidRootPart.Material = "SmoothPlastic" -- Reset material
-                    v.Character.HumanoidRootPart.CanCollide = true -- Enable collision
-                end)
-            end
-        end
-        
-        Hitbox.Text = "Off" -- Change button text to "Off"
+-- Wall Check Button Functionality
+WallCheckButton.MouseButton1Click:Connect(function()
+    wallCheckActive = not wallCheckActive
+    WallCheckButton.Text = wallCheckActive and "🛑 Wall Check: ON" or "🛑 Wall Check: OFF"
+    local targetColor = wallCheckActive and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+    tweenButton(WallCheckButton, {TextColor3 = targetColor}, 0.3)
+    for i = 1, 5 do
+        createParticle(MainFrame, WallCheckButton)
     end
 end)
 
--- Ensure the label is not visible but keep the main frame for positioning the TextBox and button.
-label.Visible = false 
+WallCheckButton.MouseEnter:Connect(function()
+    tweenButton(WallCheckButton, {Size = UDim2.new(0, 105, 0, 42), BackgroundTransparency = 0.1}, 0.2)
+end)
+WallCheckButton.MouseLeave:Connect(function()
+    tweenButton(WallCheckButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
+end)
+
+-- Size Text Box Functionality
+SizeBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local inputText = SizeBox.Text
+        local newSize = tonumber(inputText:match("%d+"))
+        if newSize and newSize >= 1 and newSize <= 10000 then
+            defaultSize = newSize
+            SizeBox.Text = "Size: " .. tostring(defaultSize)
+        else
+            SizeBox.Text = "Size: " .. tostring(defaultSize)
+        end
+    end
+end)
+
+-- Transparency Text Box Functionality
+TransparencyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local inputText = TransparencyBox.Text
+        local newTrans = tonumber(inputText:match("%d+"))
+        if newTrans and newTrans >= 1 and newTrans <= 100 then
+            defaultTransparency = newTrans
+            TransparencyBox.Text = "Trans: " .. tostring(defaultTransparency)
+        else
+            TransparencyBox.Text = "Trans: " .. tostring(defaultTransparency)
+        end
+    end
+end)
+
+-- Dragging Functionality
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+MainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- Initial Animation
+MainFrame.Position = UDim2.new(0.5, -60, 0.5, 60)
+tweenButton(MainFrame, {Position = UDim2.new(0.5, -60, 0.5, -60)}, 0.5)
+
+-- Cleanup
+Players.PlayerRemoving:Connect(function(player)
+    if player == Player then
+        ScreenGui:Destroy()
+    end
+end)
