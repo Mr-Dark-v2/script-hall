@@ -11,6 +11,11 @@ local wallCheckActive = true -- Wall check is on by default
 local defaultSize = 20 -- Default hitbox size
 local defaultTransparency = 100 -- Default transparency (0 to 100, fully transparent)
 
+-- Ensure Player exists
+if not Player then
+    error("LocalPlayer not found. Script must run on the client.")
+end
+
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game:GetService("CoreGui")
@@ -19,8 +24,8 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 120, 0, 200)
-MainFrame.Position = UDim2.new(0.5, -60, 0.5, -60)
+MainFrame.Size = UDim2.new(0, 100, 0, 160) -- Reduced from 120x200 to 100x160
+MainFrame.Position = UDim2.new(0.5, -50, 0.5, -80) -- Centered for new size
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MainFrame.BackgroundTransparency = 0.7
 MainFrame.BorderSizePixel = 0
@@ -31,7 +36,7 @@ MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(0, 120, 0, 20)
+Title.Size = UDim2.new(0, 100, 0, 20) -- Width matches new frame
 Title.Position = UDim2.new(0, 0, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "Hitbox Expander"
@@ -41,8 +46,8 @@ Title.TextSize = 14
 Title.Parent = MainFrame
 
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 100, 0, 40)
-ToggleButton.Position = UDim2.new(0, 10, 0, 25)
+ToggleButton.Size = UDim2.new(0, 80, 0, 30) -- Reduced from 100x40
+ToggleButton.Position = UDim2.new(0, 10, 0, 25) -- Centered in 100 width
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.BackgroundTransparency = 0.3
 ToggleButton.Text = "🔒 Hitbox: ON"
@@ -56,8 +61,8 @@ ToggleCorner.CornerRadius = UDim.new(0, 8)
 ToggleCorner.Parent = ToggleButton
 
 local WallCheckButton = Instance.new("TextButton")
-WallCheckButton.Size = UDim2.new(0, 100, 0, 40)
-WallCheckButton.Position = UDim2.new(0, 10, 0, 70)
+WallCheckButton.Size = UDim2.new(0, 80, 0, 30) -- Reduced from 100x40
+WallCheckButton.Position = UDim2.new(0, 10, 0, 60) -- Adjusted vertically
 WallCheckButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 WallCheckButton.BackgroundTransparency = 0.3
 WallCheckButton.Text = "🛑 Wall Check: ON"
@@ -71,8 +76,8 @@ WallCheckCorner.CornerRadius = UDim.new(0, 8)
 WallCheckCorner.Parent = WallCheckButton
 
 local SizeBox = Instance.new("TextBox")
-SizeBox.Size = UDim2.new(0, 80, 0, 20)
-SizeBox.Position = UDim2.new(0, 20, 0, 115)
+SizeBox.Size = UDim2.new(0, 60, 0, 15) -- Reduced from 80x20
+SizeBox.Position = UDim2.new(0, 20, 0, 95) -- Centered and repositioned
 SizeBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 SizeBox.BackgroundTransparency = 0.5
 SizeBox.Text = "Size: " .. tostring(defaultSize)
@@ -84,8 +89,8 @@ SizeBox.ClearTextOnFocus = false
 SizeBox.Parent = MainFrame
 
 local TransparencyBox = Instance.new("TextBox")
-TransparencyBox.Size = UDim2.new(0, 80, 0, 20)
-TransparencyBox.Position = UDim2.new(0, 20, 0, 140)
+TransparencyBox.Size = UDim2.new(0, 60, 0, 15) -- Reduced from 80x20
+TransparencyBox.Position = UDim2.new(0, 20, 0, 115) -- Adjusted vertically
 TransparencyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 TransparencyBox.BackgroundTransparency = 0.5
 TransparencyBox.Text = "Trans: " .. tostring(defaultTransparency)
@@ -103,7 +108,7 @@ local function tweenButton(button, goal, duration)
     tween:Play()
 end
 
--- Particle Effect Function
+-- Particle Creation Function
 local function createParticle(parent, button)
     local particle = Instance.new("Frame")
     particle.Size = UDim2.new(0, 5, 0, 5)
@@ -193,6 +198,7 @@ RunService.RenderStepped:Connect(function()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= Player then
             pcall(function()
+                -- Parse and clamp input values
                 local sizeValue = tonumber(SizeBox.Text:match("%d+")) or defaultSize
                 sizeValue = math.max(1, math.min(10000, sizeValue))
                 
@@ -221,7 +227,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Toggle Hitbox Button
+-- Toggle Button Functionality
 ToggleButton.MouseButton1Click:Connect(function()
     hitboxActive = not hitboxActive
     ToggleButton.Text = hitboxActive and "🔒 Hitbox: ON" or "🔓 Hitbox: OFF"
@@ -247,13 +253,13 @@ ToggleButton.MouseButton1Click:Connect(function()
 end)
 
 ToggleButton.MouseEnter:Connect(function()
-    tweenButton(ToggleButton, {Size = UDim2.new(0, 105, 0, 42), BackgroundTransparency = 0.1}, 0.2)
+    tweenButton(ToggleButton, {Size = UDim2.new(0, 85, 0, 32), BackgroundTransparency = 0.1}, 0.2) -- Adjusted for new size
 end)
 ToggleButton.MouseLeave:Connect(function()
-    tweenButton(ToggleButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
+    tweenButton(ToggleButton, {Size = UDim2.new(0, 80, 0, 30), BackgroundTransparency = 0.3}, 0.2) -- Adjusted for new size
 end)
 
--- Toggle Wall Check Button
+-- Wall Check Button Functionality
 WallCheckButton.MouseButton1Click:Connect(function()
     wallCheckActive = not wallCheckActive
     WallCheckButton.Text = wallCheckActive and "🛑 Wall Check: ON" or "🛑 Wall Check: OFF"
@@ -265,13 +271,13 @@ WallCheckButton.MouseButton1Click:Connect(function()
 end)
 
 WallCheckButton.MouseEnter:Connect(function()
-    tweenButton(WallCheckButton, {Size = UDim2.new(0, 105, 0, 42), BackgroundTransparency = 0.1}, 0.2)
+    tweenButton(WallCheckButton, {Size = UDim2.new(0, 85, 0, 32), BackgroundTransparency = 0.1}, 0.2) -- Adjusted for new size
 end)
 WallCheckButton.MouseLeave:Connect(function()
-    tweenButton(WallCheckButton, {Size = UDim2.new(0, 100, 0, 40), BackgroundTransparency = 0.3}, 0.2)
+    tweenButton(WallCheckButton, {Size = UDim2.new(0, 80, 0, 30), BackgroundTransparency = 0.3}, 0.2) -- Adjusted for new size
 end)
 
--- Size Input
+-- Size Text Box Functionality
 SizeBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         local newSize = tonumber(SizeBox.Text:match("%d+"))
@@ -284,7 +290,7 @@ SizeBox.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- Transparency Input
+-- Transparency Text Box Functionality
 TransparencyBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         local newTrans = tonumber(TransparencyBox.Text:match("%d+"))
@@ -297,17 +303,17 @@ TransparencyBox.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- Dragging GUI
+-- Dragging Functionality
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
     end
 end)
 MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
@@ -318,10 +324,14 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 MainFrame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
+
+-- Initial Animation
+MainFrame.Position = UDim2.new(0.5, -50, 0.5, 80) -- Adjusted for new size
+tweenButton(MainFrame, {Position = UDim2.new(0.5, -50, 0.5, -80)}, 0.5)
 
 -- Cleanup
 Players.PlayerRemoving:Connect(function(player)
