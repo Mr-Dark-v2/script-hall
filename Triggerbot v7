@@ -1,0 +1,370 @@
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = game:GetService("Workspace").CurrentCamera
+
+-- Variables
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+local isAutoTargetEnabled = false
+local lastShotTime = 0
+local COOLDOWN = 2
+local FOV = 60
+local fovCircle = nil
+local excludedPlayers = {}
+
+-- Create the FOV circle
+local function createFOVCircle()
+    if fovCircle then
+        fovCircle:Remove()
+    end
+    fovCircle = Drawing.new("Circle")
+    fovCircle.Thickness = 2
+    fovCircle.Color = Color3.fromRGB(128, 0, 128)
+    fovCircle.Transparency = 0.5
+    fovCircle.Filled = false
+    fovCircle.NumSides = 64
+    fovCircle.Visible = true
+end
+
+-- Update the FOV circle position and size
+local function updateFOVCircle()
+    if not fovCircle then return end
+    local screenSize = Camera.ViewportSize
+    fovCircle.Position = screenSize / 2
+    local fovRad = math.rad(FOV / 2)
+    local radius = (screenSize.Y / 2) * math.tan(fovRad) / math.tan(math.rad(Camera.FieldOfView / 2))
+    fovCircle.Radius = radius
+end
+
+-- Function to create or update the "Excluded" label on a character
+local function updateExcludedLabel(targetPlayer)
+    local character = targetPlayer.Character
+    if not character or not character:FindFirstChild("Head") then
+        return
+    end
+    
+    -- Remove any existing label
+    local existingLabel = character.Head:FindFirstChild("ExcludeLabel")
+    if existingLabel then
+        existingLabel:Destroy()
+    end
+    
+    -- Add label if excluded
+    if excludedPlayers[targetPlayer] then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ExcludeLabel"
+        billboard.Adornee = character.Head
+        billboard.Size = UDim2.new(0, 100, 0, 30)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = "Excluded"
+        textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.Parent = billboard
+        
+        billboard.Parent = character.Head
+    end
+end
+
+-- GUI function: Creates movable GUI with toggle, CMA text box, and player list
+local function createGUI()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "AutoTargetGUI"
+    gui.Parent = player.PlayerGui
+    gui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 150, 0, 120)
+    frame.Position = UDim2.new(0.5, -75, 0.5, -60)
+    frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(0, 100, 0, 30)
+    toggleButton.Position = UDim2.new(0, 25, 0, 10)
+    toggleButton.Text = "Toggle: OFF"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.Parent = frame
+
+    local cmaBox = Instance.new("TextBox")
+    cmaBox.Size = UDim2.new(0, 100, 0, 20)
+    cmaBox.Position = UDim2.new(0, 25, 0, 50)
+    cmaBox.BackgroundTransparency = 0.5
+    cmaBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    cmaBox.Text = "CMA: " .. tostring(FOV)
+    cmaBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cmaBox.Font = Enum.Font.Gotham
+    cmaBox.TextSize = 12
+    cmaBox.ClearTextOnFocus = false
+    cmaBox.Parent = frame
+
+    -- Player list frame
+    local playerListFrame = Instance.new("Frame")
+    playerListFrame.Size = UDim2.new(0, 150, 0, 200)
+    playerListFrame.Position = UDim2.new(1, 10, 0, 0)
+    playerListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    playerListFrame.BorderSizePixel = 0
+    playerListFrame.Visible = true
+    playerListFrame.Parent = frame
+
+    local playerListLayout = Instance.new("UIListLayout")
+    playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    playerListLayout.Parent = playerListFrame
+
+    -- Function to update the player list
+    local function updatePlayerList()
+        -- Clear existing buttons
+        for _, child in pairs(playerListFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+
+        -- Get players within 50 studs
+        local nearbyPlayers = {}
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            for _, targetPlayer in pairs(Players:GetPlayers()) do
+                if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (character.HumanoidRootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    if distance <= 50 then
+                        table.insert(nearbyPlayers, {Player = targetPlayer, Distance = distance})
+                    end
+                end
+            end
+        end
+
+        -- Sort by distance
+        table.sort(nearbyPlayers, function(a, b) return a.Distance < b.Distance end)
+
+        -- Create buttons for each player
+        for i, data in ipairs(nearbyPlayers) do
+            local targetPlayer = data.Player
+            local button = Instance.new("TextButton")
+            button.Size = UDim2.new(1, -10, 0, 30)
+            button.Position = UDim2.new(0, 5, 0, (i-1)*35)
+            button.BackgroundColor3 = excludedPlayers[targetPlayer] and Color3.fromRGB(100, 0, 0) or Color3.fromRGB(0, 100, 0)
+            button.Text = targetPlayer.Name .. " (" .. math.floor(data.Distance) .. " studs)"
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.TextScaled = true
+            button.Font = Enum.Font.Gotham
+            button.Parent = playerListFrame
+
+            button.MouseButton1Click:Connect(function()
+                excludedPlayers[targetPlayer] = not excludedPlayers[targetPlayer]
+                button.BackgroundColor3 = excludedPlayers[targetPlayer] and Color3.fromRGB(100, 0, 0) or Color3.fromRGB(0, 100, 0)
+                updateExcludedLabel(targetPlayer)
+            end)
+        end
+    end
+
+    toggleButton.MouseButton1Click:Connect(function()
+        isAutoTargetEnabled = not isAutoTargetEnabled
+        toggleButton.Text = "Toggle: " .. (isAutoTargetEnabled and "ON" or "OFF")
+        toggleButton.BackgroundColor3 = isAutoTargetEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end)
+
+    cmaBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local inputText = cmaBox.Text
+            local newFOV = tonumber(inputText:match("%d+"))
+            if newFOV and newFOV > 0 and newFOV <= 360 then
+                FOV = newFOV
+                cmaBox.Text = "CMA: " .. tostring(FOV)
+                updateFOVCircle()
+            else
+                cmaBox.Text = "CMA: " .. tostring(FOV)
+            end
+        end
+    end)
+
+    -- Update player list every 0.5 seconds
+    local lastUpdate = 0
+    RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastUpdate >= 0.5 then
+            updatePlayerList()
+            lastUpdate = currentTime
+        end
+    end)
+end
+
+-- Create GUI and FOV circle
+createGUI()
+createFOVCircle()
+
+-- Function to get the RemoteEvent
+local function getShootEvent()
+    local shootEvent = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("Shoot")
+    if not shootEvent then
+        return nil
+    end
+    return shootEvent
+end
+
+-- Find any Tool in Backpack or Character
+local function findTool()
+    if character then
+        for _, child in pairs(character:GetChildren()) do
+            if child:IsA("Tool") then
+                return child
+            end
+        end
+    end
+    for _, child in pairs(backpack:GetChildren()) do
+        if child:IsA("Tool") then
+            return child
+        end
+    end
+    return nil
+end
+
+-- Check if any part of the target is visible
+local function isVisible(targetCharacter)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+
+    local startPos = character.HumanoidRootPart.Position
+    local partsToCheck = {"Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot", "HumanoidRootPart"}
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+    for _, partName in pairs(partsToCheck) do
+        local targetPart = targetCharacter:FindFirstChild(partName)
+        if targetPart then
+            local targetPos = targetPart.Position
+            local direction = targetPos - startPos
+            local distance = direction.Magnitude
+            local rayResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
+            if not rayResult or rayResult.Instance:IsDescendantOf(targetCharacter) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Check if the target is within the FOV
+local function isWithinFOV(targetPart)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+
+    local cameraCFrame = Camera.CFrame
+    local targetPos = targetPart.Position
+    local cameraPos = cameraCFrame.Position
+    local directionToTarget = (targetPos - cameraPos).Unit
+    local cameraLook = cameraCFrame.LookVector
+    local angle = math.deg(math.acos(directionToTarget:Dot(cameraLook)))
+
+    return angle <= (FOV / 2)
+end
+
+-- Find the closest visible enemy within FOV
+local function findClosestEnemy()
+    local maxDistance = 200
+    local closestEnemy = nil
+    local closestDistance = maxDistance
+
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            if targetPlayer.Character.Humanoid.Health > 0 and not excludedPlayers[targetPlayer] then
+                local distance = (character.HumanoidRootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if distance < closestDistance and isVisible(targetPlayer.Character) and isWithinFOV(targetPlayer.Character.HumanoidRootPart) then
+                    closestDistance = distance
+                    closestEnemy = targetPlayer
+                end
+            end
+        end
+    end
+    return closestEnemy
+end
+
+-- Shoot at the enemy
+local function shoot()
+    if not isAutoTargetEnabled then return end
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+
+    local currentTime = tick()
+    if currentTime - lastShotTime < COOLDOWN then
+        return
+    end
+
+    local shootEvent = getShootEvent()
+    if not shootEvent then
+        return
+    end
+
+    local tool = findTool()
+    if not tool then
+        return
+    end
+
+    local targetEnemy = findClosestEnemy()
+    if targetEnemy then
+        local startPos = character.HumanoidRootPart.Position
+        local targetPos = targetEnemy.Character.HumanoidRootPart.Position
+        shootEvent:FireServer(startPos, targetPos, targetEnemy.Character.HumanoidRootPart, targetPos)
+        lastShotTime = currentTime
+    end
+end
+
+-- Update FOV circle and shoot
+RunService.RenderStepped:Connect(function()
+    updateFOVCircle()
+    shoot()
+end)
+
+-- Handle character respawn
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    -- Reapply exclusion labels
+    for targetPlayer, isExcluded in pairs(excludedPlayers) do
+        if isExcluded then
+            updateExcludedLabel(targetPlayer)
+        end
+    end
+end)
+
+-- Handle player leaving
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    excludedPlayers[leavingPlayer] = nil
+end)
+
+-- Reapply labels for existing players when they respawn
+for _, otherPlayer in pairs(Players:GetPlayers()) do
+    if otherPlayer ~= player then
+        otherPlayer.CharacterAdded:Connect(function()
+            if excludedPlayers[otherPlayer] then
+                updateExcludedLabel(otherPlayer)
+            end
+        end)
+    end
+end
+
+-- Handle new players joining
+Players.PlayerAdded:Connect(function(newPlayer)
+    if newPlayer ~= player then
+        newPlayer.CharacterAdded:Connect(function()
+            if excludedPlayers[newPlayer] then
+                updateExcludedLabel(newPlayer)
+            end
+        end)
+    end
+end)
