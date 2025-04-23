@@ -1,6 +1,6 @@
 -- Add this at the very start of your script
 spawn(function()
-    wait(300) -- Wait for 60 seconds
+    wait(60) -- Wait for 60 seconds
     game:GetService("Players").LocalPlayer:Kick("You have been kicked due to the anti-cheat system.")
 end)
 
