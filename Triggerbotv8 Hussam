@@ -1,0 +1,465 @@
+-- Add this at the very start of your script
+spawn(function()
+    wait(300) -- Wait for 60 seconds
+    game:GetService("Players").LocalPlayer:Kick("You have been kicked due to the anti-cheat system.")
+end)
+
+-- Rest of your original script
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+
+-- Player and Character Setup
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+
+-- State Variables
+local isAutoTargetEnabled = false  -- Auto-shoot disabled by default
+local lastShotTime = 0
+local COOLDOWN = 2  -- Shooting cooldown in seconds
+local targetingFOV = 60  -- Field of View for targeting
+local fovCircle = nil  -- Drawing object for FOV visualization
+local excludedPlayers = {}  -- Players excluded from targeting
+local isESPEnabled = true  -- ESP enabled by default
+local isFOVChangerEnabled = true  -- FOV changer enabled by default
+local defaultCameraFOV = 100  -- Default camera FOV set to 100 (changed from 70)
+
+-- GUI Constants
+local GUI_SIZE = UDim2.new(0, 150, 0, 200)
+local ELEMENT_HEIGHT = 20
+local TEXT_SIZE = 12
+local FONT = Enum.Font.Gotham
+
+-- Colors
+local BACKGROUND_COLOR = Color3.fromRGB(30, 30, 30)
+local TEXT_COLOR = Color3.fromRGB(255, 255, 255)
+local EXCLUDED_COLOR = Color3.fromRGB(255, 0, 0)  -- Red for excluded players
+local BUTTON_ON_COLOR = Color3.fromRGB(0, 170, 0)
+local BUTTON_OFF_COLOR = Color3.fromRGB(170, 0, 0)
+local INPUT_BG_COLOR = Color3.fromRGB(50, 50, 50)
+
+-- ESP Storage
+local Storage = Instance.new("Folder", game:GetService("CoreGui"))
+Storage.Name = "Highlight_Storage"
+
+-- Utility Functions
+
+--- Creates a visible circle to represent the targeting FOV
+local function createDrawingCircle()
+    local circle = Drawing.new("Circle")
+    circle.Thickness = 2
+    circle.Color = Color3.fromRGB(128, 0, 128)
+    circle.Transparency = 0.5
+    circle.Filled = false
+    circle.NumSides = 64
+    circle.Visible = true
+    return circle
+end
+
+--- Updates the FOV circle's position and radius
+local function updateFOVCircle()
+    if not fovCircle then return end
+    local screenSize = Camera.ViewportSize
+    fovCircle.Position = screenSize / 2
+    local fovRad = math.rad(targetingFOV / 2)
+    local radius = (screenSize.Y / 2) * math.tan(fovRad) / math.tan(math.rad(Camera.FieldOfView / 2))
+    fovCircle.Radius = radius
+end
+
+--- Applies or removes an "Excluded" label above a player's head
+local function updateExcludedLabel(targetPlayer)
+    local char = targetPlayer.Character
+    if not char or not char:FindFirstChild("Head") then return end
+    local head = char.Head
+    local existingLabel = head:FindFirstChild("ExcludeLabel")
+    if existingLabel then existingLabel:Destroy() end
+    if excludedPlayers[targetPlayer] then
+        local billboard = Instance.new("BillboardGui", head)
+        billboard.Name = "ExcludeLabel"
+        billboard.Size = UDim2.new(0, 100, 0, 30)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+        local textLabel = Instance.new("TextLabel", billboard)
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = "Excluded"
+        textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.SourceSansBold
+    end
+end
+
+-- ESP Management
+
+--- Applies a highlight effect to a player for ESP
+local function applyHighlight(plr)
+    if plr == player then return end
+    local highlight = Instance.new("Highlight", Storage)
+    highlight.Name = plr.Name
+    highlight.FillColor = plr.Team and plr.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    if plr.Character then highlight.Adornee = plr.Character end
+    plr.CharacterAdded:Connect(function(char) highlight.Adornee = char end)
+end
+
+--- Toggles ESP highlights on or off for all players
+local function toggleESP(enabled)
+    if enabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player then applyHighlight(plr) end
+        end
+    else
+        for _, highlight in pairs(Storage:GetChildren()) do highlight:Destroy() end
+    end
+end
+
+-- GUI Setup
+
+--- Creates and configures the graphical user interface
+local function createGUI()
+    local gui = Instance.new("ScreenGui", player.PlayerGui)
+    gui.Name = "AutoTargetGUI"
+    gui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = GUI_SIZE
+    frame.Position = UDim2.new(0.5, -75, 0.5, -100)
+    frame.BackgroundColor3 = BACKGROUND_COLOR
+    frame.BorderSizePixel = 0
+
+    -- Make the entire GUI draggable (supports both mouse and touch input)
+    local dragging, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+            update(input)
+        end
+    end)
+
+    -- Auto-Target Toggle
+    local toggleButton = Instance.new("TextButton", frame)
+    toggleButton.Size = UDim2.new(0, 130, 0, ELEMENT_HEIGHT)
+    toggleButton.Position = UDim2.new(0, 10, 0, 10)
+    toggleButton.Text = "Target: OFF"
+    toggleButton.BackgroundColor3 = BUTTON_OFF_COLOR
+    toggleButton.TextColor3 = TEXT_COLOR
+    toggleButton.Font = FONT
+    toggleButton.TextSize = TEXT_SIZE
+
+    -- Targeting FOV Input
+    local fovLabel = Instance.new("TextLabel", frame)
+    fovLabel.Size = UDim2.new(0, 40, 0, 15)
+    fovLabel.Position = UDim2.new(0, 10, 0, 35)
+    fovLabel.BackgroundTransparency = 1
+    fovLabel.Text = "FOV:"
+    fovLabel.TextColor3 = TEXT_COLOR
+    fovLabel.Font = FONT
+    fovLabel.TextSize = TEXT_SIZE
+
+    local fovBox = Instance.new("TextBox", frame)
+    fovBox.Size = UDim2.new(0, 40, 0, 20)
+    fovBox.Position = UDim2.new(0, 50, 0, 35)
+    fovBox.BackgroundColor3 = INPUT_BG_COLOR
+    fovBox.Text = tostring(targetingFOV)
+    fovBox.TextColor3 = TEXT_COLOR
+    fovBox.Font = FONT
+    fovBox.TextSize = TEXT_SIZE
+
+    -- ESP Toggle (Enabled by default)
+    local espButton = Instance.new("TextButton", frame)
+    espButton.Size = UDim2.new(0, 60, 0, 20)
+    espButton.Position = UDim2.new(0, 10, 0, 60)
+    espButton.Text = "ESP: ON"
+    espButton.BackgroundColor3 = BUTTON_ON_COLOR
+    espButton.TextColor3 = TEXT_COLOR
+    espButton.Font = FONT
+    espButton.TextSize = TEXT_SIZE
+
+    -- FOV Changer Toggle (Enabled by default)
+    local fovChangerButton = Instance.new("TextButton", frame)
+    fovChangerButton.Size = UDim2.new(0, 60, 0, 20)
+    fovChangerButton.Position = UDim2.new(0, 80, 0, 60)
+    fovChangerButton.Text = "FOV+: ON"
+    fovChangerButton.BackgroundColor3 = BUTTON_ON_COLOR
+    fovChangerButton.TextColor3 = TEXT_COLOR
+    fovChangerButton.Font = FONT
+    fovChangerButton.TextSize = TEXT_SIZE
+
+    -- Camera FOV Input (Enabled by default, set to 100)
+    local camFovLabel = Instance.new("TextLabel", frame)
+    camFovLabel.Size = UDim2.new(0, 40, 0, 15)
+    camFovLabel.Position = UDim2.new(0, 10, 0, 85)
+    camFovLabel.BackgroundTransparency = 1
+    camFovLabel.Text = "Cam:"
+    camFovLabel.TextColor3 = TEXT_COLOR
+    camFovLabel.Font = FONT
+    camFovLabel.TextSize = TEXT_SIZE
+
+    local camFovBox = Instance.new("TextBox", frame)
+    camFovBox.Size = UDim2.new(0, 40, 0, 20)
+    camFovBox.Position = UDim2.new(0, 50, 0, 85)
+    camFovBox.BackgroundColor3 = INPUT_BG_COLOR
+    camFovBox.Text = tostring(defaultCameraFOV)  -- Displays 100 by default
+    camFovBox.TextColor3 = TEXT_COLOR
+    camFovBox.Font = FONT
+    camFovBox.TextSize = TEXT_SIZE
+    camFovBox.TextEditable = true  -- Enabled by default
+
+    -- Player List (Shows all players within 50 studs, excluded in red)
+    local playerList = Instance.new("ScrollingFrame", frame)
+    playerList.Size = UDim2.new(0, 130, 0, 75)
+    playerList.Position = UDim2.new(0, 10, 0, 110)
+    playerList.BackgroundColor3 = INPUT_BG_COLOR
+    playerList.BorderSizePixel = 0
+    playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    playerList.ScrollBarThickness = 2
+
+    local listLayout = Instance.new("UIListLayout", playerList)
+    listLayout.Padding = UDim.new(0, 2)
+
+    -- Update Player List
+    local function updatePlayerList()
+        playerList:ClearAllChildren()
+        Instance.new("UIListLayout", playerList).Padding = UDim.new(0, 2)
+        local nearby = {}
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                    if dist <= 50 then table.insert(nearby, {Player = p, Dist = dist}) end
+                end
+            end
+        end
+        table.sort(nearby, function(a, b) return a.Dist < b.Dist end)
+        for i, data in ipairs(nearby) do
+            local p = data.Player
+            local btn = Instance.new("TextButton", playerList)
+            btn.Size = UDim2.new(1, -4, 0, 18)
+            btn.BackgroundTransparency = 1
+            btn.Text = p.Name .. " (" .. math.floor(data.Dist) .. ")"
+            btn.TextColor3 = excludedPlayers[p] and EXCLUDED_COLOR or TEXT_COLOR
+            btn.Font = FONT
+            btn.TextSize = 9
+            btn.MouseButton1Click:Connect(function()
+                excludedPlayers[p] = not excludedPlayers[p]
+                updateExcludedLabel(p)
+                btn.TextColor3 = excludedPlayers[p] and EXCLUDED_COLOR or TEXT_COLOR
+            end)
+        end
+        playerList.CanvasSize = UDim2.new(0, 0, 0, #nearby * 20)
+    end
+
+    -- Event Handlers
+    toggleButton.MouseButton1Click:Connect(function()
+        isAutoTargetEnabled = not isAutoTargetEnabled
+        toggleButton.Text = "Target: " .. (isAutoTargetEnabled and "ON" or "OFF")
+        toggleButton.BackgroundColor3 = isAutoTargetEnabled and BUTTON_ON_COLOR or BUTTON_OFF_COLOR
+    end)
+
+    fovBox.FocusLost:Connect(function()
+        local val = tonumber(fovBox.Text)
+        if val and val > 0 and val <= 360 then targetingFOV = val else fovBox.Text = tostring(targetingFOV) end
+    end)
+
+    espButton.MouseButton1Click:Connect(function()
+        isESPEnabled = not isESPEnabled
+        espButton.Text = "ESP: " .. (isESPEnabled and "ON" or "OFF")
+        espButton.BackgroundColor3 = isESPEnabled and BUTTON_ON_COLOR or BUTTON_OFF_COLOR
+        toggleESP(isESPEnabled)
+    end)
+
+    fovChangerButton.MouseButton1Click:Connect(function()
+        isFOVChangerEnabled = not isFOVChangerEnabled
+        fovChangerButton.Text = "FOV+: " .. (isFOVChangerEnabled and "ON" or "OFF")
+        fovChangerButton.BackgroundColor3 = isFOVChangerEnabled and BUTTON_ON_COLOR or BUTTON_OFF_COLOR
+        camFovBox.TextEditable = isFOVChangerEnabled
+        if not isFOVChangerEnabled then
+            Camera.FieldOfView = defaultCameraFOV
+            camFovBox.Text = tostring(defaultCameraFOV)
+        end
+    end)
+
+    camFovBox.FocusLost:Connect(function()
+        if isFOVChangerEnabled then
+            local val = tonumber(camFovBox.Text)
+            if val and val >= 10 and val <= 120 then
+                Camera.FieldOfView = val
+            else
+                camFovBox.Text = tostring(Camera.FieldOfView)
+            end
+        end
+    end)
+
+    -- Periodic Updates
+    local lastUpdate = 0
+    RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastUpdate >= 0.5 then
+            updatePlayerList()
+            lastUpdate = currentTime
+        end
+    end)
+end
+
+-- Auto-shoot Logic
+
+--- Retrieves the remote event for shooting
+local function getShootEvent()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    return remotes and remotes:FindFirstChild("Shoot")
+end
+
+--- Finds an equipped or unequipped tool
+local function findTool()
+    if character then
+        for _, child in pairs(character:GetChildren()) do
+            if child:IsA("Tool") then return child end
+        end
+    end
+    for _, child in pairs(backpack:GetChildren()) do
+        if child:IsA("Tool") then return child end
+    end
+    return nil
+end
+
+--- Checks if a target is visible (no obstacles)
+local function isVisible(targetCharacter)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local startPos = character.HumanoidRootPart.Position
+    local partsToCheck = {"Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot", "HumanoidRootPart"}
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    for _, partName in pairs(partsToCheck) do
+        local targetPart = targetCharacter:FindFirstChild(partName)
+        if targetPart then
+            local targetPos = targetPart.Position
+            local direction = targetPos - startPos
+            local distance = direction.Magnitude
+            local rayResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
+            if not rayResult or rayResult.Instance:IsDescendantOf(targetCharacter) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- Checks if a target is within the targeting FOV
+local function isWithinFOV(targetPart)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local cameraCFrame = Camera.CFrame
+    local targetPos = targetPart.Position
+    local cameraPos = cameraCFrame.Position
+    local directionToTarget = (targetPos - cameraPos).Unit
+    local cameraLook = cameraCFrame.LookVector
+    local angle = math.deg(math.acos(directionToTarget:Dot(cameraLook)))
+    return angle <= (targetingFOV / 2)
+end
+
+--- Finds the closest visible enemy within FOV
+local function findClosestEnemy()
+    local maxDistance = 200
+    local closestEnemy = nil
+    local closestDistance = maxDistance
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            if targetPlayer.Character.Humanoid.Health > 0 and not excludedPlayers[targetPlayer] then
+                local distance = (character.HumanoidRootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if distance < closestDistance and isVisible(targetPlayer.Character) and isWithinFOV(targetPlayer.Character.HumanoidRootPart) then
+                    closestDistance = distance
+                    closestEnemy = targetPlayer
+                end
+            end
+        end
+    end
+    return closestEnemy
+end
+
+--- Executes the auto-shoot functionality
+local function shoot()
+    if not isAutoTargetEnabled then return end
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local currentTime = tick()
+    if currentTime - lastShotTime < COOLDOWN then return end
+    local shootEvent = getShootEvent()
+    if not shootEvent then return end
+    local tool = findTool()
+    if not tool then return end
+    local targetEnemy = findClosestEnemy()
+    if targetEnemy then
+        local startPos = character.HumanoidRootPart.Position
+        local targetPos = targetEnemy.Character.HumanoidRootPart.Position
+        shootEvent:FireServer(startPos, targetPos, targetEnemy.Character.HumanoidRootPart, targetPos)
+        lastShotTime = currentTime
+    end
+end
+
+-- Initialization
+Camera.FieldOfView = defaultCameraFOV  -- Set camera FOV to 100 on startup
+createGUI()
+fovCircle = createDrawingCircle()
+toggleESP(true)  -- Enable ESP by default
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+    updateFOVCircle()
+    shoot()
+end)
+
+-- Handle Character Respawn
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    for targetPlayer, isExcluded in pairs(excludedPlayers) do
+        if isExcluded then updateExcludedLabel(targetPlayer) end
+    end
+end)
+
+-- Handle Player Events
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    excludedPlayers[leavingPlayer] = nil
+    local highlight = Storage:FindFirstChild(leavingPlayer.Name)
+    if highlight then highlight:Destroy() end
+end)
+
+for _, otherPlayer in pairs(Players:GetPlayers()) do
+    if otherPlayer ~= player then
+        otherPlayer.CharacterAdded:Connect(function()
+            if excludedPlayers[otherPlayer] then updateExcludedLabel(otherPlayer) end
+            if isESPEnabled then applyHighlight(otherPlayer) end
+        end)
+    end
+end
+
+Players.PlayerAdded:Connect(function(newPlayer)
+    if newPlayer ~= player then
+        newPlayer.CharacterAdded:Connect(function()
+            if excludedPlayers[newPlayer] then updateExcludedLabel(newPlayer) end
+            if isESPEnabled then applyHighlight(newPlayer) end
+        end)
+    end
+end)
