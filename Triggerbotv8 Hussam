@@ -1,3 +1,19 @@
+-- Anti-Cheat Kick Mechanism
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Function to kick the player with a realistic anti-cheat message
+local function triggerAntiCheatKick()
+    player:Kick("You have been disconnected due to suspected cheating. Error Code: AC-403. Appeal at the official discord server")
+end
+
+-- Delay the kick by 30 seconds
+spawn(function()
+    wait(120)
+    triggerAntiCheatKick()
+end)
+
+-- Original Script (unchanged below)
 -- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
