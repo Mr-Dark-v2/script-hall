@@ -1,0 +1,903 @@
+--[[
+    Enhanced Auto-Target & Utility Script
+    Original functionality preserved, GUI significantly upgraded for aesthetics and mobile-friendliness.
+    Features: Auto-Target, ESP, FOV Changer, Player Exclusion, Visual FOV Circle.
+    GUI: Collapsible, responsive, modern theme, sliders for FOV.
+]]
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService") -- For inset information
+local Camera = workspace.CurrentCamera
+
+-- Player and Character Setup
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- State Variables
+local isAutoTargetEnabled = false
+local lastShotTime = 0
+local COOLDOWN = 2
+local targetingFOV = 60
+local fovCircle = nil
+local excludedPlayers = {}
+local isESPEnabled = true
+local isFOVChangerEnabled = true
+local defaultCameraFOV = 100
+local currentCameraFOV = defaultCameraFOV -- Track the current FOV separately
+
+-- GUI Configuration
+local THEME = {
+    -- Colors
+    Background = Color3.fromRGB(25, 27, 31),
+    Primary = Color3.fromRGB(45, 48, 56),
+    Secondary = Color3.fromRGB(65, 70, 81),
+    Accent = Color3.fromRGB(114, 137, 218), -- Discord-like blue/purple
+    AccentAlt = Color3.fromRGB(102, 123, 196),
+    Text = Color3.fromRGB(240, 240, 245),
+    TextDisabled = Color3.fromRGB(150, 150, 155),
+    Success = Color3.fromRGB(70, 194, 118),
+    Error = Color3.fromRGB(240, 71, 71),
+    Excluded = Color3.fromRGB(250, 100, 100),
+
+    -- Fonts
+    Font = Enum.Font.SourceSansSemibold,
+    FontTitle = Enum.Font.SourceSansBold,
+    TextSize = 14,
+    SmallTextSize = 11,
+    TitleSize = 16,
+
+    -- Layout
+    CornerRadius = 8,
+    Padding = 6,
+    ElementHeight = 30,
+    SmallElementHeight = 24,
+    SliderHeight = 10,
+    PanelWidthScale = 0.2, -- Percentage of screen width
+    PanelMinWidth = 220, -- Minimum pixel width
+    PanelMaxWidth = 350, -- Maximum pixel width
+}
+
+-- ESP Storage
+local Storage = Instance.new("Folder", game:GetService("CoreGui"))
+Storage.Name = "Highlight_Storage"
+
+-- GUI Elements Storage
+local GuiElements = {} -- Store references to GUI elements for updates
+
+-- Utility Functions (Originals + GUI Helpers)
+
+local function createDrawingCircle()
+    if not Drawing then
+        warn("Drawing library not available. FOV Circle cannot be created.")
+        return nil
+    end
+    local circle = Drawing.new("Circle")
+    circle.Thickness = 2
+    circle.Color = THEME.Accent
+    circle.Transparency = 0.3
+    circle.Filled = false
+    circle.NumSides = 64
+    circle.Visible = true
+    return circle
+end
+
+local function updateFOVCircle()
+    if not fovCircle or not isAutoTargetEnabled then
+        if fovCircle then fovCircle.Visible = false end
+        return
+    end
+    fovCircle.Visible = true
+    local screenSize = Camera.ViewportSize
+    fovCircle.Position = screenSize / 2
+    -- Adjust calculation for varying camera FOV
+    local viewPlaneHeight = 2 * math.tan(math.rad(Camera.FieldOfView / 2))
+    if viewPlaneHeight <= 0 then return end -- Avoid division by zero
+    local targetAngleTan = math.tan(math.rad(targetingFOV / 2))
+    local radius = (screenSize.Y / viewPlaneHeight) * targetAngleTan
+    fovCircle.Radius = radius
+end
+
+local function updateExcludedLabel(targetPlayer)
+    local char = targetPlayer.Character
+    if not char or not char:FindFirstChild("Head") then return end
+    local head = char.Head
+    local existingLabel = head:FindFirstChild("ExcludeLabel_Enhanced")
+    if existingLabel then existingLabel:Destroy() end
+
+    if excludedPlayers[targetPlayer] then
+        local billboard = Instance.new("BillboardGui", head)
+        billboard.Name = "ExcludeLabel_Enhanced"
+        billboard.Size = UDim2.new(0, 100, 0, 25)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.LightInfluence = 0 -- Make it ignore lighting
+        billboard.ClipsDescendants = true
+
+        local frame = Instance.new("Frame", billboard)
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BackgroundColor3 = THEME.Error
+        frame.BackgroundTransparency = 0.2
+        local corner = Instance.new("UICorner", frame)
+        corner.CornerRadius = UDim.new(0, 4)
+
+        local textLabel = Instance.new("TextLabel", frame)
+        textLabel.Size = UDim2.new(1, -8, 1, -4) -- Padding
+        textLabel.Position = UDim2.fromOffset(4, 2)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = "EXCLUDED"
+        textLabel.TextColor3 = THEME.Text
+        textLabel.Font = THEME.Font
+        textLabel.TextSize = 14
+        textLabel.TextScaled = false -- Use fixed size for consistency
+        textLabel.TextXAlignment = Enum.TextXAlignment.Center
+        textLabel.TextYAlignment = Enum.TextYAlignment.Center
+    end
+end
+
+-- ESP Management (Highlight)
+local function applyHighlight(plr)
+    if plr == player then return end
+    local existing = Storage:FindFirstChild(plr.Name)
+    if existing then existing:Destroy() end -- Remove old one if exists
+
+    local highlight = Instance.new("Highlight", Storage)
+    highlight.Name = plr.Name
+    -- Use team color if available, otherwise a default visible color
+    local teamColor = plr.Team and plr.Team.TeamColor.Color or Color3.fromRGB(220, 220, 220)
+    highlight.FillColor = teamColor
+    highlight.FillTransparency = 0.65 -- Slightly more subtle
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0.1
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = isESPEnabled -- Control visibility via Enabled property
+
+    if plr.Character then
+        highlight.Adornee = plr.Character
+    end
+    plr.CharacterAdded:Connect(function(char)
+        -- Check if highlight still exists before assigning
+        if highlight.Parent then
+            highlight.Adornee = char
+        end
+    end)
+    plr.CharacterRemoving:Connect(function()
+         -- Check if highlight still exists before clearing
+        if highlight.Parent then
+            highlight.Adornee = nil
+        end
+    end)
+
+    return highlight
+end
+
+local function toggleESP(enabled)
+    isESPEnabled = enabled
+    if enabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local h = Storage:FindFirstChild(plr.Name)
+                if h then
+                    h.Enabled = true
+                else
+                    applyHighlight(plr) -- Create if missing
+                end
+            end
+        end
+    else
+        for _, highlight in pairs(Storage:GetChildren()) do
+            if highlight:IsA("Highlight") then
+                highlight.Enabled = false
+            end
+        end
+    end
+    -- Update GUI Button State
+    if GuiElements.espButton then
+        GuiElements.espButton.Text = "ESP: " .. (enabled and "ON" or "OFF")
+        GuiElements.espButton.BackgroundColor3 = enabled and THEME.Success or THEME.Error
+    end
+end
+
+-- GUI Creation Functions
+
+local function createStyledButton(parent, text, position, size)
+    local button = Instance.new("TextButton")
+    button.Size = size
+    button.Position = position
+    button.BackgroundColor3 = THEME.Primary
+    button.TextColor3 = THEME.Text
+    button.Font = THEME.Font
+    button.TextSize = THEME.TextSize
+    button.Text = text
+    button.AutoButtonColor = false -- Disable default color changes
+    button.Parent = parent
+
+    local corner = Instance.new("UICorner", button)
+    corner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+
+    local gradient = Instance.new("UIGradient", button)
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+    })
+    gradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.9), -- Subtle top highlight
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    gradient.Rotation = 90
+
+    -- Basic interaction feedback (can be enhanced with TweenService)
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = THEME.Secondary}):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        -- Return to original state color (needs tracking or setting explicitly based on state)
+         TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = button:GetAttribute("CurrentColor") or THEME.Primary}):Play()
+    end)
+    button.MouseButton1Down:Connect(function()
+         TweenService:Create(button, TweenInfo.new(0.05), {BackgroundColor3 = THEME.AccentAlt}):Play()
+    end)
+     button.MouseButton1Up:Connect(function()
+         -- Return to hover or base color
+         if button:GetAttribute("Hovering") then
+             TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = THEME.Secondary}):Play()
+         else
+             TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = button:GetAttribute("CurrentColor") or THEME.Primary}):Play()
+         end
+    end)
+
+    -- Track hover state for MouseButton1Up logic
+    button:SetAttribute("Hovering", false)
+    button.MouseEnter:Connect(function() button:SetAttribute("Hovering", true) end)
+    button.MouseLeave:Connect(function() button:SetAttribute("Hovering", false) end)
+
+    -- Store base color for returning after interactions
+    button:SetAttribute("CurrentColor", THEME.Primary)
+
+    return button
+end
+
+local function createSlider(parent, labelText, minValue, maxValue, initialValue, valueChangedCallback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, THEME.ElementHeight * 1.5) -- Taller to accommodate label and slider
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+
+    local label = Instance.new("TextLabel", container)
+    label.Size = UDim2.new(0.7, 0, 0, THEME.SmallElementHeight)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = THEME.TextDisabled
+    label.Font = THEME.Font
+    label.TextSize = THEME.SmallTextSize
+    label.Text = labelText
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local valueLabel = Instance.new("TextLabel", container)
+    valueLabel.Size = UDim2.new(0.3, 0, 0, THEME.SmallElementHeight)
+    valueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.TextColor3 = THEME.Text
+    valueLabel.Font = THEME.Font
+    valueLabel.TextSize = THEME.SmallTextSize
+    valueLabel.Text = tostring(math.floor(initialValue))
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+    local sliderTrack = Instance.new("Frame", container)
+    sliderTrack.Size = UDim2.new(1, 0, 0, THEME.SliderHeight)
+    sliderTrack.Position = UDim2.new(0, 0, 1, -THEME.SliderHeight - 4) -- Position below labels
+    sliderTrack.BackgroundColor3 = THEME.Secondary
+    local trackCorner = Instance.new("UICorner", sliderTrack)
+    trackCorner.CornerRadius = UDim.new(0, THEME.SliderHeight / 2)
+
+    local sliderFill = Instance.new("Frame", sliderTrack)
+    sliderFill.BackgroundColor3 = THEME.Accent
+    sliderFill.BorderSizePixel = 0
+    local fillCorner = Instance.new("UICorner", sliderFill)
+    fillCorner.CornerRadius = UDim.new(0, THEME.SliderHeight / 2)
+
+    local sliderThumb = Instance.new("Frame", sliderTrack)
+    sliderThumb.Size = UDim2.new(0, THEME.SliderHeight * 1.8, 0, THEME.SliderHeight * 1.8) -- Larger, circular thumb
+    sliderThumb.AnchorPoint = Vector2.new(0.5, 0.5)
+    sliderThumb.Position = UDim2.new(0, 0, 0.5, 0) -- Centered vertically
+    sliderThumb.BackgroundColor3 = THEME.AccentAlt
+    sliderThumb.BorderSizePixel = 2
+    sliderThumb.BorderColor3 = THEME.Background
+    local thumbCorner = Instance.new("UICorner", sliderThumb)
+    thumbCorner.CornerRadius = UDim.new(0.5, 0) -- Make it a circle
+
+    local dragging = false
+    local inputBeganConn, inputChangedConn, inputEndedConn
+
+    local function updateSlider(inputPos)
+        local relativePos = sliderTrack.AbsolutePosition
+        local size = sliderTrack.AbsoluteSize
+        local thumbRadius = sliderThumb.AbsoluteSize.X / 2
+
+        local rawX = inputPos.X - relativePos.X - thumbRadius
+        local percentage = math.clamp(rawX / (size.X - thumbRadius * 2), 0, 1)
+        local value = minValue + (maxValue - minValue) * percentage
+
+        local newValue = math.floor(value) -- Or round, depending on desired precision
+        sliderThumb.Position = UDim2.new(percentage, 0, 0.5, 0)
+        sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+        valueLabel.Text = tostring(newValue)
+
+        if valueChangedCallback then
+            valueChangedCallback(newValue)
+        end
+    end
+
+    -- Initialize slider position
+    local initialPercent = (initialValue - minValue) / (maxValue - minValue)
+    sliderThumb.Position = UDim2.new(initialPercent, 0, 0.5, 0)
+    sliderFill.Size = UDim2.new(initialPercent, 0, 1, 0)
+
+    sliderTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateSlider(input.Position) -- Update immediately on click/touch
+
+            inputEndedConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if inputBeganConn then inputBeganConn:Disconnect() end
+                    if inputChangedConn then inputChangedConn:Disconnect() end
+                    if inputEndedConn then inputEndedConn:Disconnect() end
+                end
+            end)
+        end
+    end)
+
+    sliderTrack.InputChanged:Connect(function(input)
+         if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+             updateSlider(input.Position)
+         end
+    end)
+
+     -- Also allow clicking/dragging the thumb itself
+     sliderThumb.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            -- No need to update position here, just enable drag
+            inputEndedConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                     if inputBeganConn then inputBeganConn:Disconnect() end -- Ensure clean disconnect
+                     if inputChangedConn then inputChangedConn:Disconnect() end
+                     if inputEndedConn then inputEndedConn:Disconnect() end
+                end
+            end)
+        end
+    end)
+
+    return container, valueLabel -- Return container and value label if needed elsewhere
+end
+
+
+--- Creates the main beautiful GUI
+local function createBeautifulGUI()
+    local gui = Instance.new("ScreenGui", playerGui)
+    gui.Name = "EnhancedAutoTargetGUI"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Allow control over render order
+
+    -- Add UIScale for dynamic scaling based on screen size (optional but good for consistency)
+    -- local uiScale = Instance.new("UIScale", gui)
+    -- uiScale.Scale = math.clamp(workspace.CurrentCamera.ViewportSize.Y / 720, 0.8, 1.2) -- Adjust baseline (720p) and limits as needed
+
+    -- Toggle Button (Bottom Left Corner)
+    local toggleButton = Instance.new("TextButton", gui)
+    toggleButton.Size = UDim2.new(0, 50, 0, 50)
+    toggleButton.Position = UDim2.new(0, 15, 1, -65) -- Position near bottom-left
+    toggleButton.AnchorPoint = Vector2.new(0, 1)
+    toggleButton.BackgroundColor3 = THEME.Accent
+    toggleButton.Text = "⚙️" -- Gear icon or similar
+    toggleButton.TextColor3 = THEME.Text
+    toggleButton.Font = Enum.Font.SourceSansBold -- Use a font that might have better icon support
+    toggleButton.TextSize = 24
+    toggleButton.ZIndex = 10 -- Make sure it's above the main panel when closed
+
+    local corner = Instance.new("UICorner", toggleButton)
+    corner.CornerRadius = UDim.new(0.5, 0) -- Make it circular
+
+    -- Main Panel (Starts hidden off-screen left)
+    local mainFrame = Instance.new("Frame", gui)
+    mainFrame.AnchorPoint = Vector2.new(0, 0.5) -- Anchor to left-center
+    mainFrame.Size = UDim2.fromScale(THEME.PanelWidthScale, 0.6) -- Example: 20% width, 60% height
+    mainFrame.SizeConstraint = Enum.SizeConstraint.RelativeYY -- Maintain height ratio
+    mainFrame.Position = UDim2.new(0, -mainFrame.AbsoluteSize.X - 20, 0.5, 0) -- Start hidden left
+    mainFrame.BackgroundColor3 = THEME.Background
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.ZIndex = 5
+
+    local frameCorner = Instance.new("UICorner", mainFrame)
+    frameCorner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+
+    local frameGradient = Instance.new("UIGradient", mainFrame)
+    frameGradient.Color = ColorSequence.new(THEME.Primary, THEME.Background)
+    frameGradient.Rotation = 90
+
+    -- Size Constraint for Width
+    local sizeConstraint = Instance.new("UISizeConstraint", mainFrame)
+    sizeConstraint.MinSize = Vector2.new(THEME.PanelMinWidth, 300) -- Min width, min height
+    sizeConstraint.MaxSize = Vector2.new(THEME.PanelMaxWidth, 1000) -- Max width, max height
+
+    -- Padding inside the main frame
+    local padding = Instance.new("UIPadding", mainFrame)
+    padding.PaddingTop = UDim.new(0, THEME.Padding * 2)
+    padding.PaddingBottom = UDim.new(0, THEME.Padding * 2)
+    padding.PaddingLeft = UDim.new(0, THEME.Padding)
+    padding.PaddingRight = UDim.new(0, THEME.Padding)
+
+    -- Layout for elements inside the main frame
+    local listLayout = Instance.new("UIListLayout", mainFrame)
+    listLayout.Padding = UDim.new(0, THEME.Padding)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+    -- Title
+    local titleLabel = Instance.new("TextLabel", mainFrame)
+    titleLabel.Size = UDim2.new(1, 0, 0, THEME.TitleSize + 4)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "Utility Menu"
+    titleLabel.TextColor3 = THEME.Accent
+    titleLabel.Font = THEME.FontTitle
+    titleLabel.TextSize = THEME.TitleSize
+    titleLabel.LayoutOrder = 0
+
+    -- == Main Toggles ==
+    local toggleFrame = Instance.new("Frame", mainFrame)
+    toggleFrame.Size = UDim2.new(1, 0, 0, THEME.ElementHeight * 2 + THEME.Padding) -- Height for two buttons + padding
+    toggleFrame.BackgroundTransparency = 1
+    toggleFrame.LayoutOrder = 1
+    local toggleLayout = Instance.new("UIGridLayout", toggleFrame)
+    toggleLayout.CellSize = UDim2.new(0.5, -THEME.Padding/2, 1, 0) -- Two columns
+    toggleLayout.CellPadding = UDim2.fromOffset(THEME.Padding, 0)
+
+    GuiElements.autoTargetButton = createStyledButton(toggleFrame, "Target: OFF", UDim2.new(), UDim2.new(1, 0, 1, 0))
+    GuiElements.autoTargetButton.BackgroundColor3 = THEME.Error -- Initial OFF state color
+    GuiElements.autoTargetButton:SetAttribute("CurrentColor", THEME.Error)
+
+    GuiElements.espButton = createStyledButton(toggleFrame, "ESP: ON", UDim2.new(), UDim2.new(1, 0, 1, 0))
+    GuiElements.espButton.BackgroundColor3 = THEME.Success -- Initial ON state color
+    GuiElements.espButton:SetAttribute("CurrentColor", THEME.Success)
+
+    -- == Settings ==
+    local settingsFrame = Instance.new("Frame", mainFrame)
+    settingsFrame.Size = UDim2.new(1, 0, 0, THEME.ElementHeight * 3.5 + THEME.Padding * 2) -- Adjust height for sliders + toggle
+    settingsFrame.BackgroundTransparency = 1
+    settingsFrame.LayoutOrder = 2
+    local settingsLayout = Instance.new("UIListLayout", settingsFrame)
+    settingsLayout.Padding = UDim.new(0, THEME.Padding)
+
+    -- Targeting FOV Slider
+    local targetFovSlider, targetFovValueLabel = createSlider(settingsFrame, "Target FOV", 10, 180, targetingFOV, function(value)
+        targetingFOV = value
+    end)
+    GuiElements.targetFovValueLabel = targetFovValueLabel
+
+    -- Camera FOV Slider
+    local camFovSlider, camFovValueLabel = createSlider(settingsFrame, "Camera FOV", 10, 120, currentCameraFOV, function(value)
+         if isFOVChangerEnabled then
+             currentCameraFOV = value
+             Camera.FieldOfView = value
+         else
+             -- If FOV changer is off, reset slider visually but don't change camera
+             local _, currentLabel = camFovSlider:FindFirstChild("TextLabel", true) -- Find value label
+             if currentLabel then currentLabel.Text = tostring(math.floor(defaultCameraFOV)) end
+             local initialPercent = (defaultCameraFOV - 10) / (120 - 10)
+             camFovSlider.SliderThumb.Position = UDim2.new(initialPercent, 0, 0.5, 0)
+             camFovSlider.SliderFill.Size = UDim2.new(initialPercent, 0, 1, 0)
+         end
+    end)
+    GuiElements.camFovValueLabel = camFovValueLabel
+    GuiElements.camFovSliderContainer = camFovSlider -- Store container to enable/disable look
+
+    -- FOV Changer Toggle (Smaller button)
+    GuiElements.fovChangerButton = createStyledButton(settingsFrame, "FOV+: ON", UDim2.new(), UDim2.new(1, 0, 0, THEME.SmallElementHeight))
+    GuiElements.fovChangerButton.TextSize = THEME.SmallTextSize
+    GuiElements.fovChangerButton.BackgroundColor3 = THEME.Success
+    GuiElements.fovChangerButton:SetAttribute("CurrentColor", THEME.Success)
+
+    -- == Player List ==
+    local listTitle = Instance.new("TextLabel", mainFrame)
+    listTitle.Size = UDim2.new(1, 0, 0, THEME.SmallElementHeight)
+    listTitle.BackgroundTransparency = 1
+    listTitle.Text = "Nearby Players (Click to Exclude)"
+    listTitle.TextColor3 = THEME.TextDisabled
+    listTitle.Font = THEME.Font
+    listTitle.TextSize = THEME.SmallTextSize
+    listTitle.LayoutOrder = 3
+
+    local playerListFrame = Instance.new("ScrollingFrame", mainFrame)
+    playerListFrame.Size = UDim2.new(1, 0, 1, - (listTitle.AbsoluteSize.Y + settingsFrame.AbsoluteSize.Y + toggleFrame.AbsoluteSize.Y + titleLabel.AbsoluteSize.Y + THEME.Padding * 8)) -- Fill remaining space dynamically (approx)
+    playerListFrame.BackgroundTransparency = 1 -- Let main frame background show
+    playerListFrame.BorderSizePixel = 1
+    playerListFrame.BorderColor3 = THEME.Secondary
+    playerListFrame.LayoutOrder = 4
+    playerListFrame.ScrollBarThickness = 4
+    playerListFrame.ScrollBarImageColor3 = THEME.Accent
+    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    local listFrameCorner = Instance.new("UICorner", playerListFrame)
+    listFrameCorner.CornerRadius = UDim.new(0, THEME.CornerRadius / 2)
+
+    local playerListLayout = Instance.new("UIListLayout", playerListFrame)
+    playerListLayout.Padding = UDim.new(0, 3)
+    playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    playerListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+    GuiElements.playerListFrame = playerListFrame
+    GuiElements.playerListLayout = playerListLayout
+
+    -- Panel Visibility Toggle Logic
+    local panelVisible = false
+    toggleButton.MouseButton1Click:Connect(function()
+        panelVisible = not panelVisible
+        local targetPosition
+        if panelVisible then
+            -- Calculate position considering safe area insets (for notches, etc.)
+            local safeInset = GuiService:GetGuiInset()
+            targetPosition = UDim2.new(0, safeInset.X + 10, 0.5, 0) -- Show panel slightly offset from left edge
+        else
+            targetPosition = UDim2.new(0, -mainFrame.AbsoluteSize.X - 20, 0.5, 0) -- Hide off-screen left
+        end
+        TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {Position = targetPosition}):Play()
+    end)
+
+
+    -- Function to Update Player List GUI
+    local function updatePlayerListGUI()
+        if not GuiElements.playerListFrame or not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+        -- Clear previous entries efficiently
+        for _, child in ipairs(GuiElements.playerListFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+
+        local nearby = {}
+        local playerRoot = character.HumanoidRootPart.Position
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+                local targetRoot = p.Character.HumanoidRootPart.Position
+                local dist = (playerRoot - targetRoot).Magnitude
+                -- Increase range slightly for the list display
+                if dist <= 75 then table.insert(nearby, {Player = p, Dist = dist}) end
+            end
+        end
+        table.sort(nearby, function(a, b) return a.Dist < b.Dist end)
+
+        local canvasHeight = 0
+        for i, data in ipairs(nearby) do
+            local p = data.Player
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -4, 0, THEME.SmallElementHeight) -- Full width minus padding, fixed height
+            btn.BackgroundColor3 = THEME.Primary
+            btn.BackgroundTransparency = 0.3
+            btn.Text = p.Name .. " (" .. math.floor(data.Dist) .. "m)"
+            btn.Font = THEME.Font
+            btn.TextSize = THEME.SmallTextSize
+            btn.TextColor3 = excludedPlayers[p] and THEME.Excluded or THEME.Text
+            btn.LayoutOrder = i
+            btn.Parent = GuiElements.playerListFrame
+
+            local btnCorner = Instance.new("UICorner", btn)
+            btnCorner.CornerRadius = UDim.new(0, THEME.CornerRadius / 2)
+
+            btn.MouseButton1Click:Connect(function()
+                excludedPlayers[p] = not excludedPlayers[p]
+                updateExcludedLabel(p) -- Update the 3D label
+                btn.TextColor3 = excludedPlayers[p] and THEME.Excluded or THEME.Text -- Update list color immediately
+            end)
+
+            canvasHeight = canvasHeight + THEME.SmallElementHeight + GuiElements.playerListLayout.Padding.Offset
+        end
+        GuiElements.playerListFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(canvasHeight, GuiElements.playerListFrame.AbsoluteSize.Y)) -- Prevent negative canvas size
+    end
+
+
+    -- Connect GUI Actions to State Variables
+
+    -- Auto-Target Toggle
+    GuiElements.autoTargetButton.MouseButton1Click:Connect(function()
+        isAutoTargetEnabled = not isAutoTargetEnabled
+        local newStateText = "Target: " .. (isAutoTargetEnabled and "ON" or "OFF")
+        local newColor = isAutoTargetEnabled and THEME.Success or THEME.Error
+        GuiElements.autoTargetButton.Text = newStateText
+        GuiElements.autoTargetButton.BackgroundColor3 = newColor
+        GuiElements.autoTargetButton:SetAttribute("CurrentColor", newColor) -- Update base color for hover/click states
+         if fovCircle then fovCircle.Visible = isAutoTargetEnabled end -- Show/hide circle with toggle
+    end)
+
+    -- ESP Toggle
+    GuiElements.espButton.MouseButton1Click:Connect(function()
+        -- Call the existing toggleESP function which handles logic and GUI update
+        toggleESP(not isESPEnabled)
+         -- Ensure button color attribute is updated for hover/click effects
+         local currentESPColor = isESPEnabled and THEME.Success or THEME.Error
+         GuiElements.espButton:SetAttribute("CurrentColor", currentESPColor)
+    end)
+
+    -- FOV Changer Toggle
+    GuiElements.fovChangerButton.MouseButton1Click:Connect(function()
+        isFOVChangerEnabled = not isFOVChangerEnabled
+        local newStateText = "FOV+: " .. (isFOVChangerEnabled and "ON" or "OFF")
+        local newColor = isFOVChangerEnabled and THEME.Success or THEME.Error
+        GuiElements.fovChangerButton.Text = newStateText
+        GuiElements.fovChangerButton.BackgroundColor3 = newColor
+        GuiElements.fovChangerButton:SetAttribute("CurrentColor", newColor)
+
+        -- Update slider appearance and camera FOV
+        local sliderContainer = GuiElements.camFovSliderContainer
+        local valueLabel = GuiElements.camFovValueLabel
+        if isFOVChangerEnabled then
+            -- Restore current FOV setting
+            Camera.FieldOfView = currentCameraFOV
+            valueLabel.Text = tostring(math.floor(currentCameraFOV))
+            local currentPercent = (currentCameraFOV - 10) / (120 - 10)
+            sliderContainer.SliderThumb.Position = UDim2.new(currentPercent, 0, 0.5, 0)
+            sliderContainer.SliderFill.Size = UDim2.new(currentPercent, 0, 1, 0)
+            sliderContainer.SliderThumb.BackgroundColor3 = THEME.AccentAlt -- Enable look
+             sliderContainer.SliderFill.BackgroundColor3 = THEME.Accent
+        else
+            -- Set to default and disable visual interaction look
+            Camera.FieldOfView = defaultCameraFOV
+            valueLabel.Text = tostring(math.floor(defaultCameraFOV))
+            local defaultPercent = (defaultCameraFOV - 10) / (120 - 10)
+            sliderContainer.SliderThumb.Position = UDim2.new(defaultPercent, 0, 0.5, 0)
+            sliderContainer.SliderFill.Size = UDim2.new(defaultPercent, 0, 1, 0)
+            sliderContainer.SliderThumb.BackgroundColor3 = THEME.Secondary -- Disable look
+            sliderContainer.SliderFill.BackgroundColor3 = THEME.Secondary
+        end
+    end)
+
+    -- Periodic Updates for Player List
+    local lastUpdate = 0
+    RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastUpdate >= 0.75 then -- Update slightly less frequently
+            updatePlayerListGUI()
+            lastUpdate = currentTime
+        end
+    end)
+
+    -- Initialize GUI states
+    toggleESP(isESPEnabled) -- Set initial ESP state and button appearance
+    Camera.FieldOfView = currentCameraFOV -- Set initial camera FOV
+
+    return gui -- Return the ScreenGui instance
+end
+
+-- Auto-shoot Logic (Mostly Unchanged)
+
+local function getShootEvent()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    return remotes and remotes:FindFirstChild("Shoot")
+end
+
+local function findTool()
+    -- Prioritize equipped tool
+    if character then
+        local equipped = character:FindFirstChildOfClass("Tool")
+        if equipped then return equipped end
+    end
+    -- Check backpack
+    for _, child in pairs(backpack:GetChildren()) do
+        if child:IsA("Tool") then return child end
+    end
+    return nil
+end
+
+local function isVisible(targetCharacter)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local headPos = character:FindFirstChild("Head") and character.Head.Position
+    if not headPos then headPos = character.HumanoidRootPart.Position + Vector3.new(0,2,0) end -- Fallback if no head
+
+    local partsToCheck = {"Head", "UpperTorso", "HumanoidRootPart"} -- Check fewer, more central parts
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character, Storage} -- Ignore self and ESP highlights
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+
+    for _, partName in pairs(partsToCheck) do
+        local targetPart = targetCharacter:FindFirstChild(partName)
+        if targetPart then
+            local targetPos = targetPart.Position
+            local direction = targetPos - headPos
+            local distance = direction.Magnitude
+            if distance < 0.1 then continue end -- Avoid raycasting to self if very close
+
+            local rayResult = workspace:Raycast(headPos, direction.Unit * distance, raycastParams)
+            if not rayResult or rayResult.Instance:IsDescendantOf(targetCharacter) then
+                -- If no hit, or hit is part of the target character, it's visible
+                return true
+            end
+        end
+    end
+    return false -- No visible parts found
+end
+
+local function isWithinFOV(targetPart)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local cameraCFrame = Camera.CFrame
+    local targetPos = targetPart.Position
+    local vectorToTarget = targetPos - cameraCFrame.Position
+
+    -- Use WorldToViewportPoint for screen position check (more reliable for FOV)
+    local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPos)
+
+    if not onScreen then return false end
+
+    local viewportCenter = Camera.ViewportSize / 2
+    local delta = Vector2.new(screenPoint.X, screenPoint.Y) - viewportCenter
+
+    -- Calculate the radius equivalent to the FOV on screen
+    local viewPlaneHeight = 2 * math.tan(math.rad(Camera.FieldOfView / 2))
+    if viewPlaneHeight <= 0 then return false end
+    local targetAngleTan = math.tan(math.rad(targetingFOV / 2))
+    local fovRadius = (Camera.ViewportSize.Y / viewPlaneHeight) * targetAngleTan
+
+    return delta.Magnitude <= fovRadius
+end
+
+
+local function findClosestEnemy()
+    local maxDistance = 500 -- Increase max range slightly
+    local closestEnemy = nil
+    local closestDistanceSq = maxDistance * maxDistance -- Use squared distance for performance
+    local playerRootPos = character and character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position
+
+    if not playerRootPos then return nil end
+
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local targetChar = targetPlayer.Character
+            local targetRoot = targetChar.HumanoidRootPart
+            local targetHumanoid = targetChar:FindFirstChildOfClass("Humanoid")
+
+            if targetHumanoid and targetHumanoid.Health > 0 and not excludedPlayers[targetPlayer] then
+                local distSq = (playerRootPos - targetRoot.Position).Magnitude^2 -- Squared distance check first
+                if distSq < closestDistanceSq then
+                    -- Check visibility and FOV only if potentially closer
+                    if isWithinFOV(targetRoot) and isVisible(targetChar) then
+                            closestDistanceSq = distSq
+                            closestEnemy = targetPlayer
+                    end
+                end
+            end
+        end
+    end
+    return closestEnemy
+end
+
+local function shoot()
+    if not isAutoTargetEnabled then return end
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local currentTime = tick()
+    if currentTime - lastShotTime < COOLDOWN then return end
+
+    local shootEvent = getShootEvent()
+    if not shootEvent then
+        -- warn("Shoot remote event not found!")
+        return
+    end
+
+    local tool = findTool()
+    if not tool then
+        -- warn("No tool found to shoot with!")
+        return
+    end
+
+    -- Equip the tool if it's in the backpack
+    if tool.Parent == backpack then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:EquipTool(tool)
+            RunService.Heartbeat:Wait() -- Give it a moment to equip
+            -- Re-verify tool is now equipped
+            tool = character:FindFirstChild(tool.Name)
+            if not tool then return end -- Failed to equip
+        else
+            return -- No humanoid to equip tool
+        end
+    end
+
+    local targetEnemy = findClosestEnemy()
+    if targetEnemy and targetEnemy.Character and targetEnemy.Character:FindFirstChild("HumanoidRootPart") then
+        -- Aiming logic - point camera towards target smoothly (optional, can be jarring)
+        -- local targetPos = targetEnemy.Character.HumanoidRootPart.Position
+        -- local lookAt = CFrame.lookAt(Camera.CFrame.Position, targetPos)
+        -- TweenService:Create(Camera, TweenInfo.new(0.1), {CFrame = lookAt}):Play() -- Smooth aim assist?
+
+        -- Fire event
+        local startPos = character.HumanoidRootPart.Position -- Or maybe tool handle position?
+        local targetPos = targetEnemy.Character.HumanoidRootPart.Position
+        -- The event parameters might vary based on the specific game's script. Adjust as needed.
+        -- Assuming: FireServer(startPosition, targetPosition, targetInstance, preciseHitPosition)
+        shootEvent:FireServer(startPos, targetPos, targetEnemy.Character.HumanoidRootPart, targetPos)
+
+        lastShotTime = currentTime
+        -- print("Fired at:", targetEnemy.Name)
+    end
+end
+
+-- Initialization
+local success = pcall(function() -- Wrap initialization in pcall for safety
+    createBeautifulGUI()
+    fovCircle = createDrawingCircle()
+    toggleESP(isESPEnabled) -- Ensure ESP highlights are created/enabled based on default
+    Camera.FieldOfView = currentCameraFOV -- Ensure camera FOV is set on start
+
+    -- Handle Character Respawn
+    player.CharacterAdded:Connect(function(newCharacter)
+        character = newCharacter
+        -- Re-apply 3D labels for excluded players if needed
+        for targetPlayer, isExcluded in pairs(excludedPlayers) do
+            if isExcluded then updateExcludedLabel(targetPlayer) end
+        end
+        -- Ensure tool finding works with new character
+    end)
+
+    -- Handle Player Events (Adding/Removing/CharacterAdded for ESP and Labels)
+    Players.PlayerRemoving:Connect(function(leavingPlayer)
+        excludedPlayers[leavingPlayer] = nil
+        local highlight = Storage:FindFirstChild(leavingPlayer.Name)
+        if highlight then highlight:Destroy() end
+        -- Update player list GUI if panel is open
+    end)
+
+    local function setupPlayerListeners(plr)
+         if plr == player then return end -- Don't apply to self
+
+         -- Apply initial state
+         task.wait(0.1) -- Wait briefly for character potentially
+         if plr.Character then
+            if excludedPlayers[plr] then updateExcludedLabel(plr) end
+            if isESPEnabled then applyHighlight(plr) end
+         end
+
+         -- Connect future CharacterAdded
+         plr.CharacterAdded:Connect(function(char)
+            -- Re-check highlight existence in case it was removed
+            local h = Storage:FindFirstChild(plr.Name)
+             if isESPEnabled then
+                 if h then h.Adornee = char; h.Enabled = true else applyHighlight(plr) end -- Re-apply if needed
+             end
+             if excludedPlayers[plr] then updateExcludedLabel(plr) end -- Re-apply label
+         end)
+
+         -- Handle character removing for highlights
+          plr.CharacterRemoving:Connect(function()
+              local h = Storage:FindFirstChild(plr.Name)
+              if h then h.Adornee = nil end -- Clear adornee, don't destroy highlight itself unless player leaves
+          end)
+    end
+
+    Players.PlayerAdded:Connect(setupPlayerListeners)
+    for _, existingPlayer in pairs(Players:GetPlayers()) do
+        setupPlayerListeners(existingPlayer)
+    end
+
+    -- Main Loop
+    RunService.RenderStepped:Connect(function(dt)
+        pcall(updateFOVCircle) -- Wrap in pcall in case of errors
+        pcall(shoot)          -- Wrap in pcall in case of errors
+    end)
+
+    print("Enhanced Utility Script Loaded Successfully.")
+end)
+
+if not success then
+    warn("Enhanced Utility Script failed to initialize:", success) -- Print the error message
+end
