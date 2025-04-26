@@ -1,14 +1,3 @@
---[[
-    Enhanced Auto-Target & Utility Script (Standalone & Fixed v21 - Brighter Text & Red Exclude Names)
-    GUI uses functional slider/button logic from reference ('code.txt'), overlaid with v12 aesthetics.
-    Replaced targeting/shooting/esp/fov functions with reference versions (v14).
-    Exclusion logic uses reference 3D label + toggle, v14 GUI list visuals (v15).
-    Features: Auto-Target, ESP, FOV Changer, Player Exclusion (Reference Logic), Visual FOV Circle.
-    GUI: Collapsible (Non-Draggable), animated ultra-dark theme, dark glow, accent glows, refined animations.
-    Compatibility: Uses reference script logic, standalone slider helpers, inline button updates.
-    Fix: Main button text is now bright white. Excluded player names in the list are now bright red. Fixed previous Enum errors (v19).
-]]
-
 -- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
