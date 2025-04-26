@@ -26,10 +26,10 @@ local backpack = player:WaitForChild("Backpack")
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- State Variables (From Reference Script)
-local isAutoTargetEnabled = false; local lastShotTime = 0; local COOLDOWN = 2;
-local targetingFOV = 60; local fovCircle = nil;
+local isAutoTargetEnabled = true; local lastShotTime = 0; local COOLDOWN = 2;
+local targetingFOV = 45; local fovCircle = nil;
 local excludedPlayers = {}; -- SHARED exclusion table
-local isESPEnabled = true; local isFOVChangerEnabled = true; local defaultCameraFOV = 100;
+local isESPEnabled = true; local isFOVChangerEnabled = true; local defaultCameraFOV = 115;
 local currentCameraFOV = defaultCameraFOV;
 
 -- GUI Configuration (v21 - Brighter/Red Text)
