@@ -1,14 +1,3 @@
---[[
-    THE MIST v22 - Noticeable Text & Footer Info
-    GUI uses functional slider/button logic from reference ('code.txt'), overlaid with v12 aesthetics.
-    Replaced targeting/shooting/esp/fov functions with reference versions (v14).
-    Exclusion logic uses reference 3D label + toggle, v14 GUI list visuals (v15).
-    Features: Auto-Target, ESP, FOV Changer, Player Exclusion (Reference Logic), Visual FOV Circle.
-    GUI: Collapsible (Non-Draggable), animated ultra-dark theme, dark glow, accent glows, refined animations.
-    Compatibility: Uses reference script logic, standalone slider helpers, inline button updates.
-    Fix: Changed script name in messages. Added version and disclaimer footer to GUI. Main button text is bright white (v21). Excluded player names in list are bright red (v21). Fixed Enum errors (v19).
-]]
-
 -- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,10 +15,10 @@ local backpack = player:WaitForChild("Backpack")
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- State Variables (From Reference Script)
-local isAutoTargetEnabled = false; local lastShotTime = 0; local COOLDOWN = 2;
-local targetingFOV = 60; local fovCircle = nil;
+local isAutoTargetEnabled = true; local lastShotTime = 0; local COOLDOWN = 2;
+local targetingFOV = 45; local fovCircle = nil;
 local excludedPlayers = {}; -- SHARED exclusion table
-local isESPEnabled = true; local isFOVChangerEnabled = true; local defaultCameraFOV = 100;
+local isESPEnabled = true; local isFOVChangerEnabled = true; local defaultCameraFOV = 115;
 local currentCameraFOV = defaultCameraFOV;
 
 -- GUI Configuration (v22 - Footer Info)
