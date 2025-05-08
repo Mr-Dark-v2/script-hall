@@ -41,7 +41,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local isAutoTargetEnabled = true; local lastShotTime = 0; -- lastShotTime is shared
 local COOLDOWN = 0.5; -- Fallback Cooldown (Used if Tool Attribute missing/invalid)
 local targetingFOV = 35; -- <<< SET DEFAULT TARGET FOV TO 35
-local currentDelayMode = "Blatant" -- <<< Current delay mode ("Blatant" or "Normal")
+local currentDelayMode = "Blatant" -- <<< MODIFIED: Default to Blatant mode
 local shootDelayMilliseconds = (currentDelayMode == "Normal") and 264 or 0 -- <<< Delay derived from mode
 local fovCircle = nil;
 local excludedPlayers = {};
