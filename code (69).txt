@@ -1,0 +1,126 @@
+--[[
+    THE MIST HUB v4.0 (Original ESP Restoration)
+
+    All complex, error-prone ESP systems have been stripped out. This version
+    contains the original ESP logic from the first script.
+
+    CHANGELOG v4.0:
+    - RESTORED - ORIGINAL ESP: The ESP now functions by changing the character's
+      material to ForceField. This is the classic, stable method.
+    - NOTE: This ESP logic is NOT visible through walls. The nametag remains visible.
+]]
+
+--================================================================================================--
+-- SERVICES & CORE REFERENCES
+--================================================================================================--
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local localPlayer = Players.LocalPlayer
+
+--================================================================================================--
+-- CONFIGURATION & THEME
+--================================================================================================--
+local Config = {
+    Colors = {
+        Background = Color3.fromHex("1B1D29"),
+        Primary = Color3.fromHex("2A2D3D"),
+        PrimaryGradientStart = Color3.fromHex("3D4157"),
+        PrimaryGradientEnd = Color3.fromHex("232533"),
+        Accent = Color3.fromHex("00D1FF"),
+        AccentGlow = Color3.fromHex("A5F3FF"),
+        Text = Color3.fromHex("FFFFFF"),
+        TextDull = Color3.fromHex("B0B0B0"),
+        Opener = Color3.fromHex("101116"),
+    },
+    Fonts = {
+        Title = Enum.Font.GothamBold,
+        Button = Enum.Font.GothamSemibold,
+        Info = Enum.Font.Gotham
+    },
+    Speed = { Min = 16, Default = 75, Max = 100, Increment = 10 }
+}
+
+--================================================================================================--
+-- GUI (UNCHANGED)
+--================================================================================================--
+pcall(function() CoreGui:FindFirstChild("MistHubScreenGui"):Destroy() end)
+local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "MistHubScreenGui"; ScreenGui.Parent = CoreGui; ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+local OpenerButton = Instance.new("TextButton", ScreenGui); OpenerButton.Size = UDim2.new(0, 50, 0, 50); OpenerButton.Position = UDim2.new(0, 20, 0.5, -25); OpenerButton.BackgroundColor3 = Config.Colors.Opener; OpenerButton.Text = "mist"; OpenerButton.Font = Config.Fonts.Info; OpenerButton.TextColor3 = Config.Colors.TextDull; OpenerButton.TextSize = 14; OpenerButton.AutoButtonColor = false
+Instance.new("UIAspectRatioConstraint", OpenerButton); local openerCorner = Instance.new("UICorner", OpenerButton); openerCorner.CornerRadius = UDim.new(1, 0); local openerStroke = Instance.new("UIStroke", OpenerButton); openerStroke.Color = Color3.fromHex("000000"); openerStroke.Thickness = 1.5
+local Main = Instance.new("Frame", ScreenGui); Main.Size = UDim2.new(0, 240, 0, 280); Main.Position = UDim2.new(0.5, -120, 0.5, -140); Main.BackgroundColor3 = Config.Colors.Background; Main.BorderColor3 = Color3.fromHex("0D0E14"); Main.BorderSizePixel = 2; Main.Draggable = true; Main.Active = true; Main.Visible = false; Main.ClipsDescendants = true
+local mainCorner = Instance.new("UICorner", Main); mainCorner.CornerRadius = UDim.new(0, 8)
+local ContentCanvas = Instance.new("CanvasGroup", Main); ContentCanvas.Size = UDim2.new(1, 0, 1, 0); ContentCanvas.BackgroundTransparency = 1
+local mainPadding = Instance.new("UIPadding", ContentCanvas); mainPadding.PaddingLeft = UDim.new(0, 12); mainPadding.PaddingRight = UDim.new(0, 12); mainPadding.PaddingTop = UDim.new(0, 12); mainPadding.PaddingBottom = UDim.new(0, 12)
+local MinimizeButton = Instance.new("TextButton", ContentCanvas); MinimizeButton.Size = UDim2.new(0, 20, 0, 20); MinimizeButton.Position = UDim2.new(1, 0, 0, 0); MinimizeButton.AnchorPoint = Vector2.new(1, 0); MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Text = "—"; MinimizeButton.Font = Enum.Font.SourceSansBold; MinimizeButton.TextColor3 = Config.Colors.TextDull; MinimizeButton.TextSize = 20; MinimizeButton.ZIndex = 2
+local Title = Instance.new("TextLabel", ContentCanvas); Title.Size = UDim2.new(1, 0, 0, 35); Title.BackgroundTransparency = 1; Title.Font = Config.Fonts.Title; Title.Text = "THE MIST HUB"; Title.TextColor3 = Config.Colors.Text; Title.TextSize = 22
+local titleGradient = Instance.new("UIGradient", Title); titleGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Config.Colors.TextDull),ColorSequenceKeypoint.new(0.45,Config.Colors.Text),ColorSequenceKeypoint.new(0.55,Config.Colors.Text),ColorSequenceKeypoint.new(1,Config.Colors.TextDull)}); titleGradient.Rotation = -90
+spawn(function() while Main.Parent do TweenService:Create(titleGradient, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Offset = Vector2.new(0, 1)}):Play(); task.wait(1.5); titleGradient.Offset = Vector2.new(0, -1); TweenService:Create(titleGradient, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Offset = Vector2.new(0, 0)}):Play(); task.wait(2) end end)
+local Content = Instance.new("Frame", ContentCanvas); Content.Size = UDim2.new(1, 0, 1, -35); Content.Position = UDim2.new(0, 0, 0, 35); Content.BackgroundTransparency = 1; local ListLayout = Instance.new("UIListLayout", Content); ListLayout.Padding = UDim.new(0, 10); ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local function CreateToggle(text, order) local btn = Instance.new("TextButton"); btn.Size = UDim2.new(1, 0, 0, 40); btn.BackgroundColor3 = Config.Colors.Primary; btn.Text = ""; btn.LayoutOrder = order; btn.Parent = Content; btn.ClipsDescendants = true; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6); local staticBorder = Instance.new("UIStroke", btn); staticBorder.Color = Color3.fromHex("0D0E14"); staticBorder.Thickness = 1.5; local bgGradient = Instance.new("UIGradient", btn); bgGradient.Color = ColorSequence.new(Config.Colors.PrimaryGradientStart, Config.Colors.PrimaryGradientEnd); bgGradient.Rotation = 45; local textLabel = Instance.new("TextLabel", btn); textLabel.Size = UDim2.new(1, 0, 1, 0); textLabel.BackgroundTransparency = 1; textLabel.Font = Config.Fonts.Button; textLabel.Text = text; textLabel.TextColor3 = Config.Colors.Text; textLabel.TextSize = 15; local strokeContainer = Instance.new("Frame", btn); strokeContainer.Size = UDim2.new(1, 0, 1, 0); strokeContainer.BackgroundTransparency = 1; local strokeTop = Instance.new("Frame", strokeContainer); strokeTop.BackgroundColor3 = Config.Colors.Accent; strokeTop.BorderSizePixel = 0; strokeTop.Size = UDim2.new(0, 0, 0, 2); strokeTop.Position = UDim2.new(0, 0, 0, 0); local strokeRight = Instance.new("Frame", strokeContainer); strokeRight.BackgroundColor3 = Config.Colors.Accent; strokeRight.BorderSizePixel = 0; strokeRight.Size = UDim2.new(0, 2, 0, 0); strokeRight.Position = UDim2.new(1, 0, 0, 0); strokeRight.AnchorPoint = Vector2.new(1, 0); local strokeBottom = Instance.new("Frame", strokeContainer); strokeBottom.BackgroundColor3 = Config.Colors.Accent; strokeBottom.BorderSizePixel = 0; strokeBottom.Size = UDim2.new(0, 0, 0, 2); strokeBottom.Position = UDim2.new(1, 0, 1, 0); strokeBottom.AnchorPoint = Vector2.new(1, 1); local strokeLeft = Instance.new("Frame", strokeContainer); strokeLeft.BackgroundColor3 = Config.Colors.Accent; strokeLeft.BorderSizePixel = 0; strokeLeft.Size = UDim2.new(0, 2, 0, 0); strokeLeft.Position = UDim2.new(0, 0, 1, 0); strokeLeft.AnchorPoint = Vector2.new(0, 1); local isHovering = false; local hoverAnimSpeed = 0.1; btn.MouseEnter:Connect(function() isHovering = true; task.spawn(function() TweenService:Create(strokeTop, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(1, 0, 0, 2)}):Play(); task.wait(hoverAnimSpeed); if not isHovering then return end; TweenService:Create(strokeRight, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 2, 1, 0)}):Play(); task.wait(hoverAnimSpeed); if not isHovering then return end; TweenService:Create(strokeBottom, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(1, 0, 0, 2)}):Play(); task.wait(hoverAnimSpeed); if not isHovering then return end; TweenService:Create(strokeLeft, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 2, 1, 0)}):Play() end) end); btn.MouseLeave:Connect(function() isHovering = false; task.spawn(function() TweenService:Create(strokeTop, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 0, 0, 2)}):Play(); task.wait(hoverAnimSpeed); TweenService:Create(strokeLeft, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 2, 0, 0)}):Play(); task.wait(hoverAnimSpeed); TweenService:Create(strokeBottom, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 0, 0, 2)}):Play(); task.wait(hoverAnimSpeed); TweenService:Create(strokeRight, TweenInfo.new(hoverAnimSpeed), {Size = UDim2.new(0, 2, 0, 0)}):Play() end) end); local textShadow = Instance.new("UIStroke", textLabel); textShadow.Color = Color3.fromHex("000000"); textShadow.Transparency = 1; textShadow.Thickness = 1.5; btn.MouseButton1Down:Connect(function() TweenService:Create(bgGradient, TweenInfo.new(0.1), {Rotation = -135}):Play(); TweenService:Create(textShadow, TweenInfo.new(0.1), {Transparency = 0.5}):Play() end); btn.MouseButton1Up:Connect(function() TweenService:Create(bgGradient, TweenInfo.new(0.2), {Rotation = 45}):Play(); TweenService:Create(textShadow, TweenInfo.new(0.2), {Transparency = 1}):Play() end); return btn end
+local ESPButton = CreateToggle("ESP", 1); local FlyButton = CreateToggle("HOLD TO FLY", 2)
+local SpeedFrame = Instance.new("Frame", Content); SpeedFrame.Size = UDim2.new(1, 0, 0, 85); SpeedFrame.BackgroundTransparency = 1; SpeedFrame.LayoutOrder = 3
+local SpeedLabel = Instance.new("TextLabel", SpeedFrame); SpeedLabel.Size = UDim2.new(1, 0, 0, 20); SpeedLabel.Position = UDim2.new(0.5, 0, 0, 5); SpeedLabel.AnchorPoint = Vector2.new(0.5, 0); SpeedLabel.BackgroundTransparency = 1; SpeedLabel.Font = Config.Fonts.Button; SpeedLabel.TextColor3 = Config.Colors.Text; SpeedLabel.TextSize = 14
+local SpeedRec = Instance.new("TextLabel", SpeedFrame); SpeedRec.Size = UDim2.new(1, 0, 0, 15); SpeedRec.Position = UDim2.new(0.5, 0, 0, 25); SpeedRec.AnchorPoint = Vector2.new(0.5, 0); SpeedRec.BackgroundTransparency = 1; SpeedRec.Font = Config.Fonts.Info; SpeedRec.TextColor3 = Config.Colors.TextDull; SpeedRec.TextSize = 12; SpeedRec.Text = "75 recommended"
+local Track = Instance.new("Frame", SpeedFrame); Track.Size = UDim2.new(1, -60, 0, 2); Track.Position = UDim2.new(0.5, 0, 0.5, 10); Track.AnchorPoint = Vector2.new(0.5, 0.5); Track.BackgroundColor3 = Config.Colors.Opener; Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0); local Progress = Instance.new("Frame", Track); Progress.Size = UDim2.new(0, 0, 1, 0); Progress.BackgroundColor3 = Config.Colors.Accent; Instance.new("UICorner", Progress).CornerRadius = UDim.new(1, 0); local Thumb = Instance.new("Frame", Track); Thumb.Size = UDim2.new(0, 16, 0, 16); Thumb.AnchorPoint = Vector2.new(0.5, 0.5); Thumb.BackgroundColor3 = Config.Colors.AccentGlow; Thumb.BorderSizePixel = 0; Instance.new("UICorner", Thumb).CornerRadius = UDim.new(1, 0); Instance.new("UIStroke", Thumb).Color = Config.Colors.Opener; local ThumbDragger = Instance.new("TextButton", Thumb); ThumbDragger.Size = UDim2.new(1, 10, 1, 10); ThumbDragger.AnchorPoint = Vector2.new(0.5, 0.5); ThumbDragger.Position = UDim2.new(0.5, 0, 0.5, 0); ThumbDragger.BackgroundTransparency = 1; ThumbDragger.Text = ""; ThumbDragger.MouseEnter:Connect(function() TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 20, 0, 20)}):Play() end); ThumbDragger.MouseLeave:Connect(function() TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 16, 0, 16)}):Play() end); local function createSpeedAdjustButton(text, position, anchor) local btn = Instance.new("TextButton", SpeedFrame); btn.Size = UDim2.new(0, 25, 0, 25); btn.Position = position; btn.AnchorPoint = anchor; btn.BackgroundColor3 = Config.Colors.Primary; btn.Font = Config.Fonts.Button; btn.Text = text; btn.TextColor3 = Config.Colors.TextDull; btn.TextSize = 22; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6); return btn end; local SpeedDownButton = createSpeedAdjustButton("-", UDim2.new(0, 0, 0.5, 10), Vector2.new(0, 0.5)); local SpeedUpButton = createSpeedAdjustButton("+", UDim2.new(1, 0, 0.5, 10), Vector2.new(1, 0.5))
+local isGuiOpen = false; local isAnimating = false; local mainAnimInfo = TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out); local contentFadeInfo = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out); local lastPosition = Main.Position
+local function openGui() if isGuiOpen or isAnimating then return end; isAnimating = true; OpenerButton.Visible = false; Main.Visible = true; Main.Position = OpenerButton.Position; Main.Size = OpenerButton.Size; mainCorner.CornerRadius = UDim.new(0, 50); ContentCanvas.GroupTransparency = 1; local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = UDim2.new(0, 240, 0, 280), Position = lastPosition}); frameTween:Play(); local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(0, 8)}); cornerTween:Play(); task.delay(mainAnimInfo.Time - contentFadeInfo.Time, function() if not isGuiOpen then TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 0}):Play() end end); frameTween.Completed:Connect(function() isGuiOpen = true; isAnimating = false end) end
+local function closeGui() if not isGuiOpen or isAnimating then return end; isAnimating = true; lastPosition = Main.Position; local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = OpenerButton.Size, Position = OpenerButton.Position}); frameTween:Play(); local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(0, 50)}); cornerTween:Play(); TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 1}):Play(); frameTween.Completed:Connect(function() Main.Visible = false; OpenerButton.Visible = true; isGuiOpen = false; isAnimating = false end) end
+OpenerButton.MouseButton1Click:Connect(openGui); MinimizeButton.MouseButton1Click:Connect(closeGui)
+
+--- DAN's RESTORED ORIGINAL LOGIC ---
+local espEnabled = false; local isFlying = false; local currentSpeed = Config.Speed.Default; local physicsObject = nil;
+local originalProperties = {}; local visionGuis = {}
+
+local function cleanupPhysics() if physicsObject and physicsObject.Parent then physicsObject:Destroy() end; physicsObject = nil end
+local function cleanupVision() for part, props in pairs(originalProperties) do if part and part.Parent then pcall(function() part.Material = props.Material; part.Color = props.Color; part.Transparency = props.Transparency end) end end; for player, gui in pairs(visionGuis) do if gui and gui.Parent then gui:Destroy() end end; originalProperties, visionGuis = {}, {} end
+local function updateSpeed(newSpeed) currentSpeed = math.clamp(newSpeed, Config.Speed.Min, Config.Speed.Max); SpeedLabel.Text = "SPEED: " .. math.floor(currentSpeed); local p = (currentSpeed - Config.Speed.Min) / (Config.Speed.Max - Config.Speed.Min); local ti = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out); TweenService:Create(Progress, ti, { Size = UDim2.new(p, 0, 1, 0) }):Play(); TweenService:Create(Thumb, ti, { Position = UDim2.new(p, 0, 0.5, 0) }):Play() end
+SpeedUpButton.MouseButton1Click:Connect(function() updateSpeed(currentSpeed + Config.Speed.Increment) end); SpeedDownButton.MouseButton1Click:Connect(function() updateSpeed(currentSpeed - Config.Speed.Increment) end); local isDraggingSlider = false; ThumbDragger.InputBegan:Connect(function(input) if input.UserInputType:IsA("MouseInputType") or input.UserInputType == Enum.UserInputType.Touch then isDraggingSlider = true; TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 22, 0, 22)}):Play() end end); UserInputService.InputEnded:connect(function(input) if input.UserInputType:IsA("MouseInputType") or input.UserInputType == Enum.UserInputType.Touch then isDraggingSlider = false; TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 16, 0, 16)}):Play() end end); UserInputService.InputChanged:connect(function(input) if isDraggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local mPos = UserInputService:GetMouseLocation(); local rPos = mPos.X - Track.AbsolutePosition.X; local p = math.clamp(rPos / Track.AbsoluteSize.X, 0, 1); updateSpeed(Config.Speed.Min + (p * (Config.Speed.Max - Config.Speed.Min))) end end)
+ESPButton.MouseButton1Click:Connect(function() espEnabled = not espEnabled; if not espEnabled then cleanupVision() end end)
+FlyButton.InputBegan:Connect(function(input) if input.UserInputType:IsA("MouseInputType") or input.UserInputType == Enum.UserInputType.Touch then isFlying = true; cleanupPhysics() end end); FlyButton.InputEnded:Connect(function(input) if input.UserInputType:IsA("MouseInputType") or input.UserInputType == Enum.UserInputType.Touch then isFlying = false; cleanupPhysics() end end)
+
+RunService.Heartbeat:Connect(function()
+    local char = localPlayer.Character; if not char then return end; local hum = char:FindFirstChildOfClass("Humanoid"); local root = char:FindFirstChild("HumanoidRootPart"); if not (hum and root) then return end;
+    if espEnabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Character and p.Character:FindFirstChild("Head") and not visionGuis[p] then
+                for _, part in ipairs(p.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if not originalProperties[part] then
+                            originalProperties[part] = {Material = part.Material, Color = part.Color, Transparency = part.Transparency}
+                        end
+                        part.Material = Enum.Material.ForceField
+                        part.Color = Config.Colors.Accent
+                        part.Transparency = 0.4
+                    end
+                end
+                local b = Instance.new("BillboardGui", p.Character.Head); b.AlwaysOnTop = true; b.Size = UDim2.new(0, 200, 0, 50); b.StudsOffset = Vector3.new(0, 3, 0); b.MaxDistance = 1000;
+                local t = Instance.new("TextLabel", b); t.BackgroundTransparency = 1; t.Size = UDim2.new(1, 0, 1, 0); t.Font = Config.Fonts.Button; t.Text = p.DisplayName; t.TextColor3 = Config.Colors.AccentGlow; t.TextSize = 18;
+                local s = Instance.new("UIStroke", t); s.Color = Color3.fromHex("000000"); s.Thickness = 1.5;
+                visionGuis[p] = b
+            end
+        end
+    end
+    hum.PlatformStand = isFlying
+    if isFlying then
+        if not physicsObject or not physicsObject.Parent then
+            cleanupPhysics(); physicsObject = Instance.new("BodyVelocity", root); physicsObject.P = 9e4; physicsObject.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        end
+        if workspace.CurrentCamera then physicsObject.Velocity = workspace.CurrentCamera.CFrame.LookVector * currentSpeed end
+    elseif hum.MoveDirection.Magnitude > 0 then
+        if not physicsObject or physicsObject.MaxForce.Y ~= 0 then
+            cleanupPhysics(); physicsObject = Instance.new("BodyVelocity", root); physicsObject.P = 9e4; physicsObject.MaxForce = Vector3.new(math.huge, 0, math.huge)
+        end
+        physicsObject.Velocity = hum.MoveDirection.Unit * currentSpeed
+    else
+        cleanupPhysics()
+    end
+end)
+
+updateSpeed(Config.Speed.Default);
+Players.PlayerRemoving:Connect(function(p) if visionGuis[p] then visionGuis[p]:Destroy(); visionGuis[p] = nil end end);
+local function onChar(char) cleanupPhysics(); if espEnabled then cleanupVision() end; char:WaitForChild("Humanoid").Died:Connect(function() cleanupPhysics(); cleanupVision() end) end;
+if localPlayer.Character then onChar(localPlayer.Character) end;
+localPlayer.CharacterAdded:Connect(onChar)
