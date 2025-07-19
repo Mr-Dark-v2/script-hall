@@ -66,7 +66,59 @@ local SpeedLabel = Instance.new("TextLabel", SpeedFrame); SpeedLabel.Size = UDim
 local SpeedRec = Instance.new("TextLabel", SpeedFrame); SpeedRec.Size = UDim2.new(1, 0, 0, 15); SpeedRec.Position = UDim2.new(0.5, 0, 0, 25); SpeedRec.AnchorPoint = Vector2.new(0.5, 0); SpeedRec.BackgroundTransparency = 1; SpeedRec.Font = Config.Fonts.Info; SpeedRec.TextColor3 = Config.Colors.TextDull; SpeedRec.TextSize = 12; SpeedRec.Text = "75 recommended"
 local Track = Instance.new("Frame", SpeedFrame); Track.Size = UDim2.new(1, -60, 0, 2); Track.Position = UDim2.new(0.5, 0, 0.5, 10); Track.AnchorPoint = Vector2.new(0.5, 0.5); Track.BackgroundColor3 = Config.Colors.Opener; Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0); local Progress = Instance.new("Frame", Track); Progress.Size = UDim2.new(0, 0, 1, 0); Progress.BackgroundColor3 = Config.Colors.Accent; Instance.new("UICorner", Progress).CornerRadius = UDim.new(1, 0); local Thumb = Instance.new("Frame", Track); Thumb.Size = UDim2.new(0, 16, 0, 16); Thumb.AnchorPoint = Vector2.new(0.5, 0.5); Thumb.BackgroundColor3 = Config.Colors.AccentGlow; Thumb.BorderSizePixel = 0; Instance.new("UICorner", Thumb).CornerRadius = UDim.new(1, 0); Instance.new("UIStroke", Thumb).Color = Config.Colors.Opener; local ThumbDragger = Instance.new("TextButton", Thumb); ThumbDragger.Size = UDim2.new(1, 10, 1, 10); ThumbDragger.AnchorPoint = Vector2.new(0.5, 0.5); ThumbDragger.Position = UDim2.new(0.5, 0, 0.5, 0); ThumbDragger.BackgroundTransparency = 1; ThumbDragger.Text = ""; ThumbDragger.MouseEnter:Connect(function() TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 20, 0, 20)}):Play() end); ThumbDragger.MouseLeave:Connect(function() TweenService:Create(Thumb, TweenInfo.new(0.2), {Size = UDim2.new(0, 16, 0, 16)}):Play() end); local function createSpeedAdjustButton(text, position, anchor) local btn = Instance.new("TextButton", SpeedFrame); btn.Size = UDim2.new(0, 25, 0, 25); btn.Position = position; btn.AnchorPoint = anchor; btn.BackgroundColor3 = Config.Colors.Primary; btn.Font = Config.Fonts.Button; btn.Text = text; btn.TextColor3 = Config.Colors.TextDull; btn.TextSize = 22; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6); return btn end; local SpeedDownButton = createSpeedAdjustButton("-", UDim2.new(0, 0, 0.5, 10), Vector2.new(0, 0.5)); local SpeedUpButton = createSpeedAdjustButton("+", UDim2.new(1, 0, 0.5, 10), Vector2.new(1, 0.5))
 local isGuiOpen = false; local isAnimating = false; local mainAnimInfo = TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out); local contentFadeInfo = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out); local lastPosition = Main.Position
-local function openGui() if isGuiOpen or isAnimating then return end; isAnimating = true; OpenerButton.Visible = false; Main.Visible = true; Main.Position = OpenerButton.Position; Main.Size = OpenerButton.Size; mainCorner.CornerRadius = UDim.new(0, 50); ContentCanvas.GroupTransparency = 1; local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = UDim2.new(0, 240, 0, 280), Position = lastPosition}); frameTween:Play(); local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(0, 8)}); cornerTween:Play(); task.delay(mainAnimInfo.Time - contentFadeInfo.Time, function() if not isGuiOpen then TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 0}):Play() end end); frameTween.Completed:Connect(function() isGuiOpen = true; isAnimating = false end) end
+-- This is the NEW code block to paste in
+local function openGui()
+    if isGuiOpen or isAnimating then return end
+    isAnimating = true
+    OpenerButton.Visible = false
+    Main.Visible = true
+    Main.Position = OpenerButton.Position
+    Main.Size = OpenerButton.Size
+    mainCorner.CornerRadius = UDim.new(1, 0)
+    ContentCanvas.GroupTransparency = 1 -- Content starts invisible
+
+    -- 1. First, morph the frame from a ball into a window
+    local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = UDim2.new(0, 240, 0, 280), Position = lastPosition})
+    local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(0, 8)})
+    frameTween:Play()
+    cornerTween:Play()
+
+    -- 2. Once the morph is complete, fade in the content
+    frameTween.Completed:Connect(function()
+        local contentFadeIn = TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 0})
+        contentFadeIn:Play()
+        contentFadeIn.Completed:Connect(function()
+            isGuiOpen = true
+            isAnimating = false
+        end)
+    end)
+end
+
+local function closeGui()
+    if not isGuiOpen or isAnimating then return end
+    isAnimating = true
+    lastPosition = Main.Position
+
+    -- 1. First, fade out all the content (buttons, text, etc.)
+    local contentFadeOut = TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 1})
+    contentFadeOut:Play()
+
+    -- 2. Once the content is invisible, morph the window back into a ball
+    contentFadeOut.Completed:Connect(function()
+        local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = OpenerButton.Size, Position = OpenerButton.Position})
+        local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(1, 0)})
+        frameTween:Play()
+        cornerTween:Play()
+
+        -- 3. Once the morph is complete, hide the main frame and show the opener button
+        frameTween.Completed:Connect(function()
+            Main.Visible = false
+            OpenerButton.Visible = true
+            isGuiOpen = false
+            isAnimating = false
+        end)
+    end)
+end
 local function closeGui() if not isGuiOpen or isAnimating then return end; isAnimating = true; lastPosition = Main.Position; local frameTween = TweenService:Create(Main, mainAnimInfo, {Size = OpenerButton.Size, Position = OpenerButton.Position}); frameTween:Play(); local cornerTween = TweenService:Create(mainCorner, mainAnimInfo, {CornerRadius = UDim.new(0, 50)}); cornerTween:Play(); TweenService:Create(ContentCanvas, contentFadeInfo, {GroupTransparency = 1}):Play(); frameTween.Completed:Connect(function() Main.Visible = false; OpenerButton.Visible = true; isGuiOpen = false; isAnimating = false end) end
 OpenerButton.MouseButton1Click:Connect(openGui); MinimizeButton.MouseButton1Click:Connect(closeGui)
 
