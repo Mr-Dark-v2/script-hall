@@ -1,0 +1,39 @@
+-- THE RIPCORD v1.0
+-- The one-button escape plan. Steal, pull the cord, wake up at home.
+-- Your idea. My engineering.
+
+local Player = game:GetService("Players").LocalPlayer
+
+-- ## THE PANIC BUTTON ##
+local screenGui = Instance.new("ScreenGui", Player.PlayerGui)
+screenGui.ResetOnSpawn = false
+
+local ripcordButton = Instance.new("TextButton", screenGui)
+ripcordButton.Size = UDim2.new(0, 180, 0, 60)
+ripcordButton.Position = UDim2.new(1, -190, 1, -70)
+ripcordButton.AnchorPoint = Vector2.new(1, 1)
+ripcordButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+ripcordButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+ripcordButton.BorderSizePixel = 3
+ripcordButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ripcordButton.Text = "[PULL RIPCORD]"
+ripcordButton.Font = Enum.Font.Code
+ripcordButton.TextSize = 26
+
+-- ## THE MECHANISM ##
+ripcordButton.MouseButton1Click:Connect(function()
+    local Character = Player.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+
+    if not Humanoid then
+        warn("RIPCORD JAMMED: Humanoid not found.")
+        return
+    end
+
+    -- PULL THE CORD.
+    print("PULLING RIPCORD! SEE YOU AT THE BASE.")
+    
+    -- The sacrifice. This is a reliable way to force a respawn.
+    -- It's cleaner than destroying the humanoid.
+    Character:BreakJoints()
+end)
