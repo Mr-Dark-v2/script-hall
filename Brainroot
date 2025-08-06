@@ -16,6 +16,13 @@ local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
 --================================================================================================--
+-- HELPERS
+--================================================================================================--
+local function GetRandom(min, max)
+    return min + (math.random() * (max-min))
+end
+
+--================================================================================================--
 -- CONFIGURATION & THEME (UNCHANGED)
 --================================================================================================--
 local Config = {
@@ -79,10 +86,9 @@ OpenerButton.MouseButton1Click:Connect(openGui); MinimizeButton.MouseButton1Clic
 -- DEFINITIVE ENGINE
 --================================================================================================--
 -- STATE & CONFIG
-local boostPower = 4000
 local currentMaxSpeed = Config.Speed.Default
 local isFlying = false
-local ghostVehicle, bodyGyro, bodyVelocity, weld
+local ghostVehicle, bodyGyro, bodyForce, weld
 local espEnabled = false
 local visionGuis = {}
 local originalProperties = {}
@@ -92,7 +98,7 @@ local DrawingGui = Instance.new("ScreenGui"); DrawingGui.Name = "MistHubDrawingG
 
 -- ENGINE FUNCTIONS
 local function updateSpeed(newSpeed) currentMaxSpeed = math.clamp(newSpeed, Config.Speed.Min, Config.Speed.Max); SpeedLabel.Text = "SPEED: " .. math.floor(currentMaxSpeed); local p = (currentMaxSpeed - Config.Speed.Min) / (Config.Speed.Max - Config.Speed.Min); local ti = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out); TweenService:Create(Progress, ti, { Size = UDim2.new(p, 0, 1, 0) }):Play(); TweenService:Create(Thumb, ti, { Position = UDim2.new(p, 0, 0.5, 0) }):Play() end
-local function cleanupFlight() if weld then weld:Destroy() end; if ghostVehicle then ghostVehicle:Destroy() end; weld, ghostVehicle, bodyGyro, bodyVelocity = nil, nil, nil, nil end
+local function cleanupFlight() if weld then weld:Destroy() end; if ghostVehicle then ghostVehicle:Destroy() end; weld, ghostVehicle, bodyGyro, bodyForce = nil, nil, nil, nil end
 local function cleanupVision()
     for _, guiElements in pairs(visionGuis) do for _, element in pairs(guiElements) do if element and element.Parent then element:Destroy() end end end
     visionGuis = {}
@@ -101,7 +107,7 @@ local function cleanupVision()
 end
 local function startFlying()
     if isFlying then return end -- Prevent re-triggering
-    isFlying = true; local character = localPlayer.Character; local rootPart = character and character:FindFirstChild("HumanoidRootPart"); if not character or not rootPart then isFlying = false; return end; cleanupFlight(); ghostVehicle = Instance.new("Part", workspace); ghostVehicle.Size = Vector3.new(1, 1, 1); ghostVehicle.Position = rootPart.Position; ghostVehicle.Transparency = 1; ghostVehicle.CanCollide = false; ghostVehicle.Anchored = false; bodyGyro = Instance.new("BodyGyro", ghostVehicle); bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); bodyGyro.P = 50000; bodyVelocity = Instance.new("BodyVelocity", ghostVehicle); bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge); weld = Instance.new("WeldConstraint", ghostVehicle); weld.Part0 = ghostVehicle; weld.Part1 = rootPart
+    isFlying = true; local character = localPlayer.Character; local rootPart = character and character:FindFirstChild("HumanoidRootPart"); if not character or not rootPart then isFlying = false; return end; cleanupFlight(); ghostVehicle = Instance.new("Part", workspace); ghostVehicle.Size = Vector3.new(1, 1, 1); ghostVehicle.Position = rootPart.Position; ghostVehicle.Transparency = 1; ghostVehicle.CanCollide = false; ghostVehicle.Anchored = false; bodyGyro = Instance.new("BodyGyro", ghostVehicle); bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); bodyGyro.P = 50000; bodyForce = Instance.new("BodyForce", ghostVehicle); weld = Instance.new("WeldConstraint", ghostVehicle); weld.Part0 = ghostVehicle; weld.Part1 = rootPart
 end
 local function stopFlying()
     isFlying = false; cleanupFlight()
@@ -203,8 +209,18 @@ RunService.Heartbeat:Connect(function()
     end
     
     -- Movement Logic
-    if isFlying and ghostVehicle then if camera then bodyGyro.CFrame = camera.CFrame; bodyVelocity.Velocity = camera.CFrame.LookVector * currentMaxSpeed end
-    elseif humanoid.MoveDirection.Magnitude > 0.1 then if root.Velocity.Magnitude < currentMaxSpeed then root:ApplyImpulse(humanoid.MoveDirection.Unit * boostPower * (1/60)) end end
+    if isFlying and ghostVehicle then
+        if camera then
+            bodyGyro.CFrame = camera.CFrame
+            local direction = camera.CFrame.LookVector
+            local forceMagnitude = 4000
+
+            -- Add some wobble to make it look more human
+            local wobble = Vector3.new(GetRandom(-400, 400), GetRandom(-200, 200), GetRandom(-100, 100))
+
+            bodyForce.Force = (direction * forceMagnitude) + wobble
+        end
+    elseif humanoid.MoveDirection.Magnitude > 0.1 then if root.Velocity.Magnitude < currentMaxSpeed then local randomBoost = GetRandom(1000, 2000); root:ApplyImpulse(humanoid.MoveDirection.Unit * randomBoost * (1/60)) end end
 end)
 
 --================================================================================================--
