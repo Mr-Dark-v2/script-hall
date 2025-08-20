@@ -806,4 +806,4 @@ function UI.createMainInterface()
 
     DataStore.applyFilters()
 end
-                   UI.createMainInterface()
+UI.createMainInterface()
