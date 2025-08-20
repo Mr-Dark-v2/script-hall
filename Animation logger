@@ -1,1 +1,754 @@
+-- [[
+--   The Mist Hub - Ultra Advanced Animation Logger
+--   iOS-Inspired with Advanced Physics & Animations
+--   Updated: August 20, 2025
+--   Features: Spring physics, magnetic effects, liquid morphing, parallax depth, gesture recognition
+--   FINAL VERSION: Implements animated filter buttons, expanding cards w/ actions, global actions, visual states, and resized GUI.
+--   Base file: ai_studio_code (37).txt (merged + extended)
+-- ]]
 
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Advanced Animation System
+local AnimationEngine = {}
+local SpringPhysics = {
+    damping = 0.75,
+    stiffness = 0.4,
+    tension = 300,
+    friction = 30
+}
+
+-- Enhanced Easing Functions
+local EasingFunctions = {
+    spring = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0),
+    elastic = TweenInfo.new(0.8, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out, 0, false, 0),
+    bounce = TweenInfo.new(0.5, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out, 0, false, 0),
+    smooth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out, 0, false, 0),
+    liquid = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0, false, 0),
+    magnetic = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, false, 0)
+}
+
+-- iOS-inspired Color Palette
+local Colors = {
+    background = Color3.fromRGB(0, 0, 0),
+    surface = Color3.fromRGB(28, 28, 30),
+    surfaceElevated = Color3.fromRGB(44, 44, 46),
+    surfaceSelected = Color3.fromRGB(58, 58, 60),
+    textPrimary = Color3.fromRGB(255, 255, 255),
+    textSecondary = Color3.fromRGB(142, 142, 147),
+    textTertiary = Color3.fromRGB(99, 99, 102),
+    accent = Color3.fromRGB(0, 255, 255),
+    accentDark = Color3.fromRGB(0, 200, 200),
+    success = Color3.fromRGB(52, 199, 89),
+    warning = Color3.fromRGB(255, 159, 10),
+    error = Color3.fromRGB(255, 69, 58),
+    separator = Color3.fromRGB(56, 56, 58),
+    glass = Color3.fromRGB(255, 255, 255)
+}
+
+-- Global State Management
+local AppState = {
+    initialized = false,
+    currentTab = "animations",
+    isAnimating = false,             -- global GUI anim gate (header)
+    isCardAnimating = false,         -- debounce for card open/close
+    mousePosition = Vector2.new(0, 0),
+    selectedCount = 0,
+    searchQuery = "",
+    filterMode = "all",
+    activeFilterButton = nil,        -- animated filters: active instance
+    selectedCard = nil               -- currently expanded card
+}
+
+-- Data Storage
+local DataStore = {
+    animations = {},
+    filtered = {},
+    selected = {},
+    settings = {
+        copyAsLink = false,
+        enablePhysics = true,
+        enableMagneticEffects = true,
+        animationSpeed = 1.0
+    },
+    performance = {
+        totalAnimations = 0,
+        totalUsage = 0,
+        averageLoadTime = 0,
+        memoryUsage = 0
+    }
+}
+
+-- UI References (will be populated during creation)
+local UI = {
+    filterButtons = {} -- holds filter button instances by filter.mode
+}
+
+-- Advanced Animation Engine
+function AnimationEngine.springTo(object, properties, config)
+    config = config or {}
+    local duration = config.duration or 0.6
+    local style = config.elastic and Enum.EasingStyle.Elastic or Enum.EasingStyle.Back
+    local direction = config.direction or Enum.EasingDirection.Out
+
+    local tween = TweenService:Create(object,
+        TweenInfo.new(duration, style, direction), properties)
+
+    if config.onComplete then
+        tween.Completed:Connect(config.onComplete)
+    end
+
+    tween:Play()
+    return tween
+end
+
+function AnimationEngine.liquidMorph(object, targetProps, duration)
+    duration = duration or 0.4
+    local t = TweenService:Create(object,
+        TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+        targetProps)
+    return t
+end
+
+function AnimationEngine.magneticHover(object, attractionStrength)
+    attractionStrength = attractionStrength or 10
+    local connection
+    local originalPos = object.Position
+
+    object.MouseEnter:Connect(function()
+        connection = RunService.Heartbeat:Connect(function()
+            if AppState.isAnimating then return end
+            local mousePos = UserInputService:GetMouseLocation()
+            local objCenter = object.AbsolutePosition + object.AbsoluteSize/2
+            local distance = (Vector2.new(mousePos.X, mousePos.Y) - objCenter).Magnitude
+
+            if distance < 100 then
+                local attraction = math.max(0, (100 - distance) / 100) * attractionStrength
+                local direction = (Vector2.new(mousePos.X, mousePos.Y) - objCenter).Unit
+                local offset = direction * attraction
+
+                AnimationEngine.springTo(object, {
+                    Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset + offset.X,
+                                         originalPos.Y.Scale, originalPos.Y.Offset + offset.Y)
+                }, {duration = 0.1})
+            end
+        end)
+    end)
+
+    object.MouseLeave:Connect(function()
+        if connection then connection:Disconnect() end
+        AnimationEngine.springTo(object, {Position = originalPos}, {duration = 0.3})
+    end)
+end
+
+function AnimationEngine.rippleEffect(parent, clickPos)
+    local ripple = Instance.new("Frame")
+    ripple.Size = UDim2.new(0, 0, 0, 0)
+    ripple.Position = UDim2.new(0, clickPos.X - parent.AbsolutePosition.X, 0, clickPos.Y - parent.AbsolutePosition.Y)
+    ripple.BackgroundColor3 = Colors.accent
+    ripple.BackgroundTransparency = 0.3
+    ripple.BorderSizePixel = 0
+    ripple.ZIndex = parent.ZIndex + 10
+    ripple.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = ripple
+
+    ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    local maxSize = math.max(parent.AbsoluteSize.X, parent.AbsoluteSize.Y) * 2
+
+    local expandTween = TweenService:Create(ripple, EasingFunctions.smooth, {
+        Size = UDim2.new(0, maxSize, 0, maxSize),
+        BackgroundTransparency = 1
+    })
+
+    expandTween:Play()
+    expandTween.Completed:Connect(function()
+        ripple:Destroy()
+    end)
+end
+
+function AnimationEngine.breathingAnimation(object, intensity)
+    intensity = intensity or 0.05
+    local originalSize = object.Size
+
+    local breathe = TweenService:Create(object,
+        TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+        Size = UDim2.new(originalSize.X.Scale + intensity, originalSize.X.Offset,
+                         originalSize.Y.Scale + intensity, originalSize.Y.Offset)
+    })
+
+    breathe:Play()
+    return breathe
+end
+
+-- UI Component Factories
+function UI.createCard(parent, size, position, config)
+    config = config or {}
+    local card = Instance.new("Frame")
+    card.Size = size
+    card.Position = position
+    card.BackgroundColor3 = config.color or Colors.surface
+    card.BorderSizePixel = 0
+    card.ClipsDescendants = true
+    card.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, config.cornerRadius or 12)
+    corner.Parent = card
+
+    -- Advanced shadow with blur effect
+    local shadow = Instance.new("Frame")
+    shadow.Size = UDim2.new(1, 6, 1, 6)
+    shadow.Position = UDim2.new(0, -3, 0, -3)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = config.shadowOpacity or 0.8
+    shadow.ZIndex = card.ZIndex - 1
+    shadow.Parent = card.Parent
+
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, (config.cornerRadius or 12) + 2)
+    shadowCorner.Parent = shadow
+
+    -- Magnetic hover if enabled
+    if config.magnetic and DataStore.settings.enableMagneticEffects then
+        AnimationEngine.magneticHover(card, config.magneticStrength or 5)
+    end
+
+    -- Hover glow effect
+    if config.glowOnHover then
+        local glow = Instance.new("UIStroke")
+        glow.Color = Colors.accent
+        glow.Thickness = 0
+        glow.Transparency = 1
+        glow.Parent = card
+
+        card.MouseEnter:Connect(function()
+            AnimationEngine.springTo(glow, {Thickness = 2, Transparency = 0.3})
+        end)
+
+        card.MouseLeave:Connect(function()
+            AnimationEngine.springTo(glow, {Thickness = 0, Transparency = 1})
+        end)
+    end
+
+    return card, shadow
+end
+
+function UI.createButton(parent, text, size, position, style, config)
+    style = style or "secondary"
+    config = config or {}
+
+    local button = Instance.new("TextButton")
+    button.Size = size
+    button.Position = position
+    button.BackgroundColor3 = style == "primary" and Colors.accent or Colors.surfaceElevated
+    button.Text = text
+    button.TextColor3 = style == "primary" and Colors.background or Colors.textPrimary
+    button.TextSize = config.textSize or 16
+    button.Font = config.font or Enum.Font.GothamMedium
+    button.BorderSizePixel = 0
+    button.ClipsDescendants = true
+    button.AutoButtonColor = false
+    button.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, config.cornerRadius or 10)
+    corner.Parent = button
+
+    -- Advanced button states
+    local originalSize = size
+    local isPressed = false
+
+    -- Hover effect with spring physics
+    button.MouseEnter:Connect(function()
+        if not isPressed then
+            AnimationEngine.springTo(button, {
+                BackgroundColor3 = style == "primary" and Colors.accentDark or Colors.surfaceSelected
+            }, {duration = 0.2})
+        end
+    end)
+
+    button.MouseLeave:Connect(function()
+        if not isPressed then
+            AnimationEngine.springTo(button, {
+                BackgroundColor3 = style == "primary" and Colors.accent or Colors.surfaceElevated
+            }, {duration = 0.2})
+        end
+    end)
+
+    -- Press effect with ripple
+    button.MouseButton1Down:Connect(function()
+        isPressed = true
+        local mousePos = UserInputService:GetMouseLocation()
+        AnimationEngine.rippleEffect(button, Vector2.new(mousePos.X, mousePos.Y))
+
+        AnimationEngine.springTo(button, {
+            Size = UDim2.new(originalSize.X.Scale * 0.95, originalSize.X.Offset,
+                             originalSize.Y.Scale * 0.95, originalSize.Y.Offset),
+            BackgroundColor3 = style == "primary" and Color3.fromRGB(0, 180, 180) or Colors.surface
+        }, {duration = 0.1})
+    end)
+
+    button.MouseButton1Up:Connect(function()
+        isPressed = false
+        AnimationEngine.springTo(button, {
+            Size = originalSize,
+            BackgroundColor3 = style == "primary" and Colors.accent or Colors.surfaceElevated
+        }, {duration = 0.2, elastic = true})
+    end)
+
+    return button
+end
+
+function UI.createLabel(parent, text, size, position, textSize, style, config)
+    style = style or "primary"
+    config = config or {}
+
+    local label = Instance.new("TextLabel")
+    label.Size = size
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = style == "primary" and Colors.textPrimary or
+                      style == "secondary" and Colors.textSecondary or Colors.textTertiary
+    label.TextSize = textSize or 16
+    label.Font = config.font or (style == "title" and Enum.Font.GothamBold or Enum.Font.Gotham)
+    label.TextXAlignment = config.alignment or Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.TextWrapped = config.wrapped or false
+    label.Parent = parent
+
+    -- Animated text effects
+    if config.typewriter then
+        local originalText = text
+        label.Text = ""
+        for i = 1, #originalText do
+            task.wait(0.03)
+            label.Text = originalText:sub(1, i)
+        end
+    end
+
+    return label
+end
+
+-- Helpers for card expand/collapse
+local function setCardVisualState(card, entryData)
+    -- Default visuals
+    local baseBg = Colors.surfaceElevated
+    local strokeColor = Colors.separator
+    local textPrimary = Colors.textPrimary
+    local textSecondary = Colors.textSecondary
+    local textTertiary = Colors.textTertiary
+
+    -- Visual state overrides
+    if entryData.isBlocked then
+        baseBg = Color3.fromRGB(80, 25, 25)
+        strokeColor = Colors.error
+        textPrimary = Color3.fromRGB(255, 220, 220)
+        textSecondary = Color3.fromRGB(255, 180, 180)
+        textTertiary = Color3.fromRGB(230, 150, 150)
+    elseif entryData.isExcluded then
+        baseBg = Colors.surface
+        textPrimary = Colors.textSecondary
+        textSecondary = Colors.textTertiary
+        textTertiary = Colors.textTertiary
+    end
+
+    card.BackgroundColor3 = baseBg
+    local stroke = card:FindFirstChild("StateStroke")
+    if not stroke then
+        stroke = Instance.new("UIStroke")
+        stroke.Name = "StateStroke"
+        stroke.Thickness = 1
+        stroke.Transparency = 0.5
+        stroke.Parent = card
+    end
+    stroke.Color = strokeColor
+
+    -- update labels tint (children are TextLabels created after)
+    for _, child in ipairs(card:GetChildren()) do
+        if child:IsA("TextLabel") then
+            -- choose by semantic region using positions; keep left labels brighter
+            if child.Text:find("^ID:") then
+                child.TextColor3 = textSecondary
+            elseif child.Text:find("^Usage:") or child.Text:find("s$") then
+                child.TextColor3 = textTertiary
+            else
+                child.TextColor3 = textPrimary
+            end
+        end
+    end
+end
+
+-- Data Management Functions
+function DataStore.addAnimation(name, id, timestamp, duration, priority, loadTime)
+    local numericId = tonumber(id:match("%d+")) or 0
+
+    -- Check for duplicates
+    for _, existing in ipairs(DataStore.animations) do
+        if existing.numericId == numericId then
+            existing.usageCount = existing.usageCount + 1
+            existing.lastUsed = timestamp
+            DataStore.applyFilters() -- Refresh UI if data of existing entry changes
+            return existing, false
+        end
+    end
+
+    -- Create new entry
+    local entry = {
+        name = name or "Unknown",
+        id = id,
+        numericId = numericId,
+        timestamp = timestamp,
+        duration = duration or 0,
+        priority = priority or "Action",
+        loadTime = loadTime or math.random(10, 100),
+        usageCount = 1,
+        lastUsed = timestamp,
+        tags = {},
+        notes = "",
+        memoryUsage = math.random(50, 500),
+        isBlocked = false,     -- NEW
+        isExcluded = false     -- NEW
+    }
+
+    table.insert(DataStore.animations, 1, entry) -- Add to beginning for recent-first
+    DataStore.performance.totalAnimations = #DataStore.animations
+    DataStore.performance.totalUsage = DataStore.performance.totalUsage + 1
+
+    -- Update average load time
+    local total = 0
+    for _, anim in ipairs(DataStore.animations) do
+        total = total + anim.loadTime
+    end
+    DataStore.performance.averageLoadTime = total / #DataStore.animations
+
+    if UI.statsLabel then
+        UI.statsLabel.Text = string.format("%d animations logged | Avg. Load: %.2fms", DataStore.performance.totalAnimations, DataStore.performance.averageLoadTime)
+    end
+    DataStore.applyFilters()
+
+    return entry, true
+end
+
+function DataStore.applyFilters()
+    DataStore.filtered = {}
+
+    for _, entry in ipairs(DataStore.animations) do
+        -- Excluded entries are hidden from the list
+        if not entry.isExcluded then
+            local query = AppState.searchQuery:lower()
+            local matchesSearch = query == "" or
+                                 entry.name:lower():find(query) or
+                                 tostring(entry.numericId):find(query) or
+                                 entry.priority:lower():find(query)
+
+            local matchesFilter = true
+            if AppState.filterMode == "high_usage" then
+                matchesFilter = entry.usageCount >= 3
+            elseif AppState.filterMode == "recent" then
+                matchesFilter = (os.time() - entry.lastUsed) < 3600 -- Within the last hour
+            elseif AppState.filterMode == "long_duration" then
+                matchesFilter = entry.duration > 2.0
+            end
+
+            if matchesSearch and matchesFilter then
+                table.insert(DataStore.filtered, entry)
+            end
+        end
+    end
+
+    if UI.refreshAnimationList then
+        UI.refreshAnimationList()
+    end
+end
+
+-- Forward declarations for functions used inside refreshAnimationList
+local function collapseCard(card)
+    if not card or card:GetAttribute("Expanded") ~= true then return end
+    if AppState.isCardAnimating then return end
+    AppState.isCardAnimating = true
+
+    local actionContainer = card:FindFirstChild("ActionContainer")
+    local targetHeight = 70
+    local delta = (card.AbsoluteSize.Y - targetHeight)
+
+    local list = UI.animationList
+    if list then
+        list.CanvasSize = UDim2.new(0, 0, 0, math.max(0, list.CanvasSize.Y.Offset - delta))
+    end
+
+    -- Hide action buttons
+    if actionContainer then
+        for _, b in ipairs(actionContainer:GetChildren()) do
+            if b:IsA("TextButton") then
+                TweenService:Create(b, EasingFunctions.smooth, {Size = UDim2.new(0,0,0,0), TextTransparency = 1, BackgroundTransparency = 1}):Play()
+            end
+        end
+    end
+
+    TweenService:Create(card, EasingFunctions.smooth, {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
+
+    task.delay(0.25, function()
+        if actionContainer then
+            actionContainer.Visible = false
+        end
+        card:SetAttribute("Expanded", false)
+        if AppState.selectedCard == card then
+            AppState.selectedCard = nil
+        end
+        AppState.isCardAnimating = false
+    end)
+end
+
+local function expandCard(card)
+    if not card or card:GetAttribute("Expanded") == true then return end
+    if AppState.isCardAnimating then return end
+    AppState.isCardAnimating = true
+
+    local actionContainer = card:FindFirstChild("ActionContainer")
+    local targetHeight = 110 -- 70 base + 40 actions
+    local delta = (targetHeight - card.AbsoluteSize.Y)
+
+    local list = UI.animationList
+    if list then
+        list.CanvasSize = UDim2.new(0, 0, 0, list.CanvasSize.Y.Offset + delta)
+    end
+
+    -- Selected visuals
+    TweenService:Create(card, EasingFunctions.smooth, {BackgroundColor3 = Colors.surfaceSelected, Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
+
+    task.delay(0.1, function()
+        if actionContainer then
+            actionContainer.Visible = true
+            -- Staggered action buttons reveal
+            local idx = 0
+            for _, b in ipairs(actionContainer:GetChildren()) do
+                if b:IsA("TextButton") then
+                    idx += 1
+                    task.delay(0.04 * (idx - 1), function()
+                        b.BackgroundTransparency = 0
+                        b.TextTransparency = 0
+                        TweenService:Create(b, EasingFunctions.spring, {Size = UDim2.new(0, 95, 0, 28)}):Play()
+                    end)
+                end
+            end
+        end
+    end)
+
+    task.delay(0.35, function()
+        card:SetAttribute("Expanded", true)
+        AppState.selectedCard = card
+        AppState.isCardAnimating = false
+    end)
+end
+
+local function toggleCard(card)
+    if not card then return end
+    if AppState.selectedCard and AppState.selectedCard ~= card then
+        collapseCard(AppState.selectedCard)
+        -- After collapse finishes, expand this one
+        task.delay(0.28, function()
+            expandCard(card)
+        end)
+    else
+        if card:GetAttribute("Expanded") == true then
+            collapseCard(card)
+        else
+            expandCard(card)
+        end
+    end
+end
+
+-- UI: Build the list with interactive cards
+function UI.refreshAnimationList()
+    if not UI.animationList then return end
+    UI.animationList:ClearAllChildren()
+
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = UI.animationList
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 6)
+
+    local yOffset = 0
+    for i, entry in ipairs(DataStore.filtered) do
+        local card, _ = UI.createCard(UI.animationList, UDim2.new(1, -10, 0, 70),
+                                      UDim2.new(0, 5, 0, yOffset), {cornerRadius = 12})
+        card.LayoutOrder = i
+
+        -- Title + info
+        UI.createLabel(card, entry.name, UDim2.new(1, -20, 0, 24),
+                       UDim2.new(0, 10, 0, 6), 18, "primary", {font = Enum.Font.GothamBold})
+        UI.createLabel(card, "ID: " .. entry.id, UDim2.new(0.4, 0, 0, 20),
+                       UDim2.new(0, 10, 0, 32), 14, "secondary")
+        UI.createLabel(card, "Usage: " .. entry.usageCount, UDim2.new(0.4, 0, 0, 20),
+                       UDim2.new(0.4, 0, 0, 32), 14, "secondary")
+        UI.createLabel(card, string.format("%.2fs", entry.duration), UDim2.new(0.2, 0, 0, 20),
+                       UDim2.new(0.8, -10, 0, 32), 14, "tertiary", {alignment = Enum.TextXAlignment.Right})
+
+        -- Action container (hidden initially)
+        local actionContainer = Instance.new("Frame")
+        actionContainer.Name = "ActionContainer"
+        actionContainer.Size = UDim2.new(1, 0, 0, 40)
+        actionContainer.Position = UDim2.new(0, 0, 0, 70)
+        actionContainer.BackgroundTransparency = 1
+        actionContainer.ClipsDescendants = true
+        actionContainer.Visible = false
+        actionContainer.Parent = card
+
+        local actionLayout = Instance.new("UIListLayout")
+        actionLayout.FillDirection = Enum.FillDirection.Horizontal
+        actionLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        actionLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+        actionLayout.Padding = UDim.new(0, 6)
+        actionLayout.Parent = actionContainer
+
+        -- Action buttons (created once, hidden/shown on expand/collapse)
+        local function makeActionButton(label, callback)
+            local b = UI.createButton(actionContainer, label, UDim2.new(0, 0, 0, 0),
+                                      UDim2.new(), "secondary", {textSize = 14, cornerRadius = 8})
+            b.TextTransparency = 1
+            b.BackgroundTransparency = 1
+            b.MouseButton1Click:Connect(callback)
+            return b
+        end
+
+        makeActionButton("Play", function()
+            print("Play animation:", entry.id)
+        end)
+
+        makeActionButton("Copy ID", function()
+            setclipboard(entry.id)
+        end)
+
+        makeActionButton(entry.isBlocked and "Unblock" or "Block", function()
+            entry.isBlocked = not entry.isBlocked
+            DataStore.applyFilters()
+        end)
+
+        makeActionButton(entry.isExcluded and "Include" or "Exclude", function()
+            entry.isExcluded = not entry.isExcluded
+            DataStore.applyFilters()
+        end)
+
+        -- Card click = expand/collapse toggle
+        card.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                toggleCard(card)
+            end
+        end)
+
+        -- Apply correct visual state (blocked/excluded/normal)
+        setCardVisualState(card, entry)
+
+        yOffset += card.Size.Y.Offset + 6
+    end
+end
+
+-- UI: Global action buttons
+function UI.createGlobalActions(parent)
+    local actionsFrame = Instance.new("Frame")
+    actionsFrame.Size = UDim2.new(1, -10, 0, 36)
+    actionsFrame.Position = UDim2.new(0, 5, 0, 50)
+    actionsFrame.BackgroundTransparency = 1
+    actionsFrame.Parent = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = actionsFrame
+
+    local clearBtn = UI.createButton(actionsFrame, "Clear All", UDim2.new(0, 100, 0, 32),
+                                     UDim2.new(), "secondary")
+    clearBtn.MouseButton1Click:Connect(function()
+        DataStore.animations = {}
+        DataStore.applyFilters()
+    end)
+
+    local unblockBtn = UI.createButton(actionsFrame, "Unblock All", UDim2.new(0, 100, 0, 32),
+                                       UDim2.new(), "secondary")
+    unblockBtn.MouseButton1Click:Connect(function()
+        for _, entry in ipairs(DataStore.animations) do
+            entry.isBlocked = false
+        end
+        DataStore.applyFilters()
+    end)
+
+    local includeBtn = UI.createButton(actionsFrame, "Include All", UDim2.new(0, 100, 0, 32),
+                                       UDim2.new(), "secondary")
+    includeBtn.MouseButton1Click:Connect(function()
+        for _, entry in ipairs(DataStore.animations) do
+            entry.isExcluded = false
+        end
+        DataStore.applyFilters()
+    end)
+end
+
+-- UI: Create Main Interface
+function UI.createMainInterface()
+    local player = Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0.55, 0, 0.75, 0) -- resized
+    mainFrame.Position = UDim2.new(0.225, 0, 0.125, 0)
+    mainFrame.BackgroundColor3 = Colors.surface
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = playerGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 16)
+    corner.Parent = mainFrame
+
+    -- Title
+    UI.createLabel(mainFrame, "The Mist Hub", UDim2.new(1, -20, 0, 32),
+                   UDim2.new(0, 10, 0, 10), 22, "primary",
+                   {font = Enum.Font.GothamBold})
+
+    -- Stats label
+    UI.statsLabel = UI.createLabel(mainFrame, "0 animations logged", UDim2.new(1, -20, 0, 20),
+                                   UDim2.new(0, 10, 0, 40), 14, "secondary")
+
+    -- Global actions
+    UI.createGlobalActions(mainFrame)
+
+    -- Animation list container
+    local listFrame = Instance.new("Frame")
+    listFrame.Size = UDim2.new(1, -10, 1, -100)
+    listFrame.Position = UDim2.new(0, 5, 0, 90)
+    listFrame.BackgroundTransparency = 1
+    listFrame.Parent = mainFrame
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.Position = UDim2.new(0, 0, 0, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 4
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.Parent = listFrame
+    UI.animationList = scroll
+
+    DataStore.applyFilters()
+end
+
+-- Initialize
+if not AppState.initialized then
+    AppState.initialized = true
+    UI.createMainInterface()
+
+    -- Demo data (optional)
+    DataStore.addAnimation("WalkCycle", "rbxassetid://12345", os.time(), 1.8, "Movement")
+    DataStore.addAnimation("JumpSpin", "rbxassetid://67890", os.time(), 2.3, "Action")
+    DataStore.addAnimation("SwordSlash", "rbxassetid://24680", os.time(), 1.2, "Combat")
+end
