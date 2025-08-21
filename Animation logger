@@ -1054,7 +1054,7 @@ function UI.setupAnalyticsTab()
     UI.createLabel(UI.analyticsTab, "Analytics", UDim2.new(1, 0, 0, 50), UDim2.new(0, 0, 0, 20), 24, "title", {alignment = Enum.TextXAlignment.Center})
 end
 
--- Animation listener (validated)
+-- Animation listener (fixed with proper end)
 local function setupAnimationListener()
     local player = Players.LocalPlayer
 
