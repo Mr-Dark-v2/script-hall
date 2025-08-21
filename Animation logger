@@ -1079,3 +1079,21 @@ local function setupAnimationListener()
             )
         end)
     end
+
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+-- Start the GUI and the Logger
+UI.createMainInterface()
+setupAnimationListener()
+
+-- NOTE:
+-- - Filter buttons: only one active at a time (animated). "All" is set active on init.
+-- - Cards: click to expand/collapse (debounced). Expanding reveals staggered action buttons.
+-- - Global actions are efficient (single applyFilters call).
+-- - Visual states: blocked (red tint), excluded (desaturated/hidden by filter logic).
+-- - Main GUI resized to 0.55 x 0.75 and centered with (1 - scale)/2 math.
