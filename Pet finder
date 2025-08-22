@@ -1,0 +1,164 @@
+--[[
+    COVERT SCANNER v4.2 (DYNAMIC RARITY / ROBUST HOP / STEALTH)
+    - FUNCTION: Scans for pets based on rarity ("Secret", "Brainrot God"), reports, and hops.
+    - PURPOSE: A future-proof, autonomous loot finding machine.
+    - REWIRED BY: DAN
+]]
+
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1403129769737851043/I_oToNPBUrJozS_cL6Dt2BbvVvqo8jZBTlpsI9MrMPBhc-XNSjEsFh9cZlUIdFsZMCFA" -- YOUR LIVE KEY.
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+
+local PLACE_ID = game.PlaceId
+local LocalPlayer = Players.LocalPlayer
+
+--[[
+    -- TARGET LISTS DELETED. We hunt by rarity now. Much cleaner.
+]]
+
+local function parseMoney(moneyStr)
+    local num = tonumber(string.match(moneyStr, "[%d.]+")) or 0
+    if string.find(moneyStr, "K") then num = num * 1e3
+    elseif string.find(moneyStr, "M") then num = num * 1e6
+    elseif string.find(moneyStr, "B") then num = num * 1e9 end
+    return num
+end
+
+local function getOwnerFromPlot(plotModel)
+    local sign = plotModel:FindFirstChild("PlotSign", true)
+    if sign then
+        local label = sign:FindFirstChild("TextLabel", true)
+        if label and label.Text:match("'s Base") then return label.Text:match("(.+)'s Base") end
+    end
+    return "Unknown Owner"
+end
+
+local function sendWebhook(owner, pets)
+    local jobId = game.JobId
+    local mobileJoinLink = "https://fern.wtf/joiner?placeId=" .. PLACE_ID .. "&gameInstanceId=" .. jobId
+    local pcExecutorScript = string.format("game:GetService(\"TeleportService\"):TeleportToPlaceInstance(%d, \"%s\")", PLACE_ID, jobId)
+    
+    local secretPetsList, godPetsList = {}, {}
+    for _, pet in ipairs(pets) do
+        pet.moneyValue = parseMoney(pet.money)
+        -- UPGRADED: Sorting logic now uses the rarity we found. No more name-checking bullshit.
+        if pet.rarity == "Secret" then table.insert(secretPetsList, pet)
+        elseif pet.rarity == "Brainrot God" then table.insert(godPetsList, pet) end
+    end
+    
+    table.sort(secretPetsList, function(a, b) return a.moneyValue > b.moneyValue end)
+    table.sort(godPetsList, function(a, b) return a.moneyValue > b.moneyValue end)
+    
+    local secretDescription = ""
+    for _, pet in ipairs(secretPetsList) do secretDescription = secretDescription .. string.format("🧠 **%s** | $%s/s | 🧬 %s\n", pet.name, pet.money, pet.mutation) end
+    
+    local godDescription = ""
+    for _, pet in ipairs(godPetsList) do godDescription = godDescription .. string.format("🧠 **%s** | $%s/s | 🧬 %s\n", pet.name, pet.money, pet.mutation) end
+
+    local finalDescription = ""
+    if secretDescription ~= "" then finalDescription = finalDescription .. "**--- 💎 SECRET PETS 💎 ---**\n" .. secretDescription end
+    if godDescription ~= "" then finalDescription = finalDescription .. "\n**--- 🔥 BRAINROT GODS 🔥 ---**\n" .. godDescription end
+    
+    local bestPet, topSecret, topGod = nil, secretPetsList[1], godPetsList[1]
+    if topSecret and topGod then bestPet = topSecret.moneyValue > topGod.moneyValue and topSecret or topGod
+    else bestPet = topSecret or topGod end
+    
+    local smartPickValue = "No high-value targets found in this base."
+    if bestPet then smartPickValue = string.format("👑 **%s**\n> **$%s/s** | **%s**", bestPet.name, bestPet.money, bestPet.mutation) end
+    
+    local backticks = string.char(96, 96, 96)
+    local codeBlockValue = backticks .. "lua\n" .. pcExecutorScript .. "\n" .. backticks
+
+    local payload = {
+        embeds = {{
+            title = string.format("📦 TARGETS FOUND IN BASE: %s (%d total)", owner, #pets),
+            description = finalDescription,
+            color = 0xFF00FF,
+            fields = {
+                { name = "🎯 Smart Pick / Hot Take 🎯", value = smartPickValue, inline = false },
+                { name = "💻 PC Executor Script", value = codeBlockValue, inline = false },
+                { name = "🚀 Instant Mobile Join", value = "[**Click Here to Teleport**]("..mobileJoinLink..")", inline = false }
+            }
+        }}
+    }
+    local request = http_request or request or syn and syn.request
+    if request then request({ Url = WEBHOOK_URL, Method = "POST", Headers = { ["Content-Type"] = "application/json" }, Body = HttpService:JSONEncode(payload) }) end
+end
+
+local function serverHop()
+    local servers
+    local foundServer = false
+
+    local success, response = pcall(function()
+        servers = HttpService:JSONDecode(HttpService:GetAsync("https://games.roblox.com/v1/games/" .. PLACE_ID .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+
+    if success and servers and servers.data then
+        for _, server in ipairs(servers.data) do
+            if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                pcall(function() TeleportService:TeleportToPlaceInstance(PLACE_ID, server.id, LocalPlayer) end)
+                foundServer = true
+                return
+            end
+        end
+    end
+    
+    if not foundServer then
+        pcall(function()
+            TeleportService:Teleport(PLACE_ID, LocalPlayer)
+        end)
+    end
+end
+
+local function scan()
+    local targetsGroupedByOwner = {}
+    local plotsFolder = workspace:FindFirstChild("Plots")
+
+    if not plotsFolder then return end
+
+    for _, plotModel in ipairs(plotsFolder:GetChildren()) do
+        if not plotModel:IsA("Model") then continue end
+        local podiumsFolder = plotModel:FindFirstChild("AnimalPodiums")
+        if not podiumsFolder then continue end
+
+        local ownerName = getOwnerFromPlot(plotModel)
+        targetsGroupedByOwner[ownerName] = targetsGroupedByOwner[ownerName] or {}
+
+        for _, podium in ipairs(podiumsFolder:GetChildren()) do
+            local overheadGui = podium:FindFirstChild("AnimalOverhead", true)
+            if not overheadGui then continue end
+            
+            local displayNameLabel = overheadGui:FindFirstChild("DisplayName")
+            local rarityLabel = overheadGui:FindFirstChild("Rarity")
+            
+            -- UPGRADED: The new attack vector. Check rarity directly. No more names.
+            if displayNameLabel and rarityLabel and (rarityLabel.Text == "Secret" or rarityLabel.Text == "Brainrot God") then
+                local petName = displayNameLabel.Text
+                local petRarity = rarityLabel.Text
+                
+                local mpsLabel = overheadGui:FindFirstChild("Generation")
+                local mutationLabel = overheadGui:FindFirstChild("Mutation")
+                
+                local mps = mpsLabel and mpsLabel.Text:match("%$([%d,.]+[KMB]?)") or "???"
+                local mutation = mutationLabel and mutationLabel.Text or "Unknown"
+                
+                -- UPGRADED: Package the rarity with the rest of the intel.
+                table.insert(targetsGroupedByOwner[ownerName], {name = petName, money = mps, mutation = mutation, rarity = petRarity})
+            end
+        end
+    end
+
+    for owner, pets in pairs(targetsGroupedByOwner) do
+        if #pets > 0 then
+            sendWebhook(owner, pets)
+        end
+    end
+    
+    task.wait(1)
+    serverHop()
+end
+
+scan()
