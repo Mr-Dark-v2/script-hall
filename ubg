@@ -1,5 +1,5 @@
 --// =================================================================
---// THE MIST HUB - v7.2
+--// THE MIST HUB - v8.0 (Ghost In The Shell)
 --// =================================================================
 
 --// [ THE ARMORY - CONFIGURATION ]
@@ -16,15 +16,19 @@ local Config = {
     Settings = { MinDelay = 0.1, MaxDelay = 2.0, DefaultLightDelay = 0.3, DefaultHeavyDelay = 0.6, StepperIncrement = 0.01 },
     Responsive = {
         BaseSize = Vector2.new(340, 440),
-        ScaleToShortestSideRatio = 0.75 -- FIX: Made smaller (was 0.85)
+        ScaleToShortestSideRatio = 0.75
     }
 }
 
 --// [ THE GHOST - SERVICES & STATE ]
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players, UserInputService, TweenService, RunService = game:GetService("Players"), game:GetService("UserInputService"), game:GetService("TweenService"), game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local State = { scriptEnabled = true, canDodge = true, hitboxVisible = true, hitboxSize = 6, lightDodgeDelay = Config.Settings.DefaultLightDelay, heavyDodgeDelay = Config.Settings.DefaultHeavyDelay }
+
+--// [ THE PSYCHIC NERVE - DIRECT EVENT ACCESS ]
+local TryDashEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("TryDash")
 
 --// [ THE ROBOT FACTORY - UI COMPONENT BUILDERS ]
 local Factory = {}
@@ -68,7 +72,6 @@ function Factory.createSeparator(parent) local sep = Instance.new("Frame", paren
 --// [ THE FOREMAN - FULL GUI ASSEMBLY ]
 local function BuildGUI()
     local screenGui = Instance.new("ScreenGui"); screenGui.Name = "TheMistHub_GUI"; screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
     local uiScale = Instance.new("UIScale", screenGui)
     RunService.RenderStepped:Connect(function()
         local viewport = workspace.Camera.ViewportSize
@@ -76,17 +79,12 @@ local function BuildGUI()
         local scaleFactor = (shortestSide * Config.Responsive.ScaleToShortestSideRatio) / Config.Responsive.BaseSize.Y
         uiScale.Scale = scaleFactor
     end)
-
     local mainFrame = Instance.new("Frame", screenGui); mainFrame.Size = UDim2.new(0, Config.Responsive.BaseSize.X, 0, Config.Responsive.BaseSize.Y); mainFrame.Position = UDim2.new(0, 50, 0.5, 0); mainFrame.AnchorPoint = Vector2.new(0, 0.5); mainFrame.BackgroundColor3 = Config.Theme.Colors.Background; mainFrame.BorderSizePixel = 0;
     local fC = Instance.new("UICorner", mainFrame); fC.CornerRadius = UDim.new(0, 8);
     local fP = Instance.new("UIPadding", mainFrame); fP.PaddingLeft = UDim.new(0, 20); fP.PaddingRight = UDim.new(0, 20); fP.PaddingTop = UDim.new(0, 20); fP.PaddingBottom = UDim.new(0, 20)
     local dragBar = Instance.new("Frame", mainFrame); dragBar.Size = UDim2.new(1, 40, 0, 40); dragBar.Position = UDim2.new(0, -20, 0, -20); dragBar.BackgroundColor3 = Config.Theme.Colors.Primary; dragBar.BorderSizePixel = 0; local dC = Instance.new("UICorner", dragBar); dC.CornerRadius = UDim.new(0, 8)
-    
-    --// FIX: Title and Subtitle Rebranding
-    local titleIcon = Instance.new("ImageLabel", dragBar); titleIcon.Visible = false -- Hide icon for cleaner look
     local titleLabel = Instance.new("TextLabel", dragBar); titleLabel.Size = UDim2.new(1, 0, 0, 24); titleLabel.Position = UDim2.new(0, 0, 0, -2); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Text = "THE MIST HUB"; titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextXAlignment = Enum.TextXAlignment.Center; titleLabel.TextSize = 20
-    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v7.2"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
-    
+    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v8.0"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
     local list = Instance.new("UIListLayout", mainFrame); list.Padding = UDim.new(0, 15); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.FillDirection = Enum.FillDirection.Vertical; local listP = Instance.new("UIPadding", mainFrame); listP.PaddingTop = UDim.new(0, 40)
     
     local enableToggle = Factory.createToggle(mainFrame, "Enable System", State.scriptEnabled, function(s) State.scriptEnabled = s end); enableToggle.LayoutOrder = 1
@@ -103,7 +101,23 @@ end
 --// [ THE ENGINE ROOM - CORE LOGIC ]
 local Box
 local function checkThreat(h) if not h then return end for _,t in pairs(h:GetPlayingAnimationTracks()) do for _,id in ipairs(Config.Threats.Light) do if t.Animation.AnimationId==id then return"Light"end end; for _,id in ipairs(Config.Threats.Heavy) do if t.Animation.AnimationId==id then return"Heavy"end end end end
-local function onTouched(hit) if not State.scriptEnabled or not State.canDodge then return end; local char=hit.Parent; if not char then return end; local p=Players:GetPlayerFromCharacter(char); if not p or p==LocalPlayer then return end; local h=char:FindFirstChildOfClass("Humanoid"); if not h or h.Health<=0 then return end; local threat=checkThreat(h); if threat then State.canDodge=false; local d=(threat=="Light") and State.lightDodgeDelay or State.heavyDodgeDelay; keypress(32); task.wait(0.05); keyrelease(32); task.wait(d); State.canDodge=true end end
+local function onTouched(hit)
+    if not State.scriptEnabled or not State.canDodge then return end;
+    local char=hit.Parent; if not char then return end;
+    local p=Players:GetPlayerFromCharacter(char); if not p or p==LocalPlayer then return end;
+    local h=char:FindFirstChildOfClass("Humanoid"); if not h or h.Health<=0 then return end;
+    local threat=checkThreat(h);
+    if threat then
+        State.canDodge=false
+        local d=(threat=="Light") and State.lightDodgeDelay or State.heavyDodgeDelay
+        
+        --// THE PSYCHIC SURGERY
+        TryDashEvent:FireServer()
+        
+        task.wait(d)
+        State.canDodge=true
+    end
+end
 local function setupCharacter(c) if Box then Box:Destroy() end; local hrp=c:WaitForChild("HumanoidRootPart",10); if not hrp then return end; Box=Instance.new("Part"); Box.Name="MistHubHitbox"; Box.Size=Vector3.new(State.hitboxSize,State.hitboxSize,State.hitboxSize); Box.Anchored=false; Box.CanCollide=false; Box.Transparency=State.hitboxVisible and 0.6 or 1; Box.Color=Config.Theme.Colors.Accent; Box.Material=Enum.Material.Neon; Box.Parent=workspace; Box.Touched:Connect(onTouched); local w=Instance.new("Weld"); w.Part0=hrp; w.Part1=Box; w.C0=CFrame.new(); w.C1=CFrame.new(); w.Parent=hrp end
 
 --// [ IGNITION ]
