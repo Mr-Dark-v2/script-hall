@@ -1,12 +1,22 @@
 --// =================================================================
---// THE MIST HUB - v8.1 (The Final Word)
+--// THE MIST HUB - v9.1 (Threats Updated)
 --// =================================================================
 
 --// [ THE ARMORY - CONFIGURATION ]
 local Config = {
     Threats = {
-        Light = { "rbxassetid://14136120871", "rbxassetid://14135442357" },
-        Heavy = { "rbxassetid://14136372505", "rbxassetid://14136346745" }
+        --// UPDATED KILL LIST
+        Light = {
+            "rbxassetid://14136120871", 
+            "rbxassetid://14135442357",
+            "rbxassetid://15416041119", -- Light2
+            "rbxassetid://15443949271"  -- Light
+        },
+        Heavy = {
+            "rbxassetid://14136372505", 
+            "rbxassetid://14136346745",
+            "rbxassetid://9208727960"   -- Heavy
+        }
     },
     Theme = {
         Colors = { Background = Color3.fromRGB(28, 29, 33), Primary = Color3.fromRGB(22, 23, 27), Secondary = Color3.fromRGB(150, 152, 157), Text = Color3.fromRGB(220, 220, 220), Accent = Color3.fromRGB(0, 225, 255), On = Color3.fromRGB(0, 180, 140), Off = Color3.fromRGB(255, 50, 80), },
@@ -81,11 +91,11 @@ local function BuildGUI()
     end)
     local mainFrame = Instance.new("Frame", screenGui); mainFrame.Size = UDim2.new(0, Config.Responsive.BaseSize.X, 0, Config.Responsive.BaseSize.Y); mainFrame.Position = UDim2.new(0, 50, 0.5, 0); mainFrame.AnchorPoint = Vector2.new(0, 0.5); mainFrame.BackgroundColor3 = Config.Theme.Colors.Background; mainFrame.BorderSizePixel = 0;
     local fC = Instance.new("UICorner", mainFrame); fC.CornerRadius = UDim.new(0, 8);
-    local fP = Instance.new("UIPadding", mainFrame); fP.PaddingLeft = UDim.new(0, 20); fP.PaddingRight = UDim.new(0, 20); fP.PaddingTop = UDim.new(0, 20); fP.PaddingBottom = UDim.new(0, 20)
+    local fP = Instance.new("UIPadding", mainFrame); fP.PaddingLeft = UDim2.new(0, 20); fP.PaddingRight = UDim2.new(0, 20); fP.PaddingTop = UDim2.new(0, 20); fP.PaddingBottom = UDim2.new(0, 20)
     local dragBar = Instance.new("Frame", mainFrame); dragBar.Size = UDim2.new(1, 40, 0, 40); dragBar.Position = UDim2.new(0, -20, 0, -20); dragBar.BackgroundColor3 = Config.Theme.Colors.Primary; dragBar.BorderSizePixel = 0; local dC = Instance.new("UICorner", dragBar); dC.CornerRadius = UDim.new(0, 8)
     local titleLabel = Instance.new("TextLabel", dragBar); titleLabel.Size = UDim2.new(1, 0, 0, 24); titleLabel.Position = UDim2.new(0, 0, 0, -2); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Text = "THE MIST HUB"; titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextXAlignment = Enum.TextXAlignment.Center; titleLabel.TextSize = 20
-    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v8.1"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
-    local list = Instance.new("UIListLayout", mainFrame); list.Padding = UDim.new(0, 15); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.FillDirection = Enum.FillDirection.Vertical; local listP = Instance.new("UIPadding", mainFrame); listP.PaddingTop = UDim.new(0, 40)
+    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v9.1"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
+    local list = Instance.new("UIListLayout", mainFrame); list.Padding = UDim2.new(0, 15); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.FillDirection = Enum.FillDirection.Vertical; local listP = Instance.new("UIPadding", mainFrame); listP.PaddingTop = UDim.new(0, 40)
     
     local enableToggle = Factory.createToggle(mainFrame, "Enable System", State.scriptEnabled, function(s) State.scriptEnabled = s end); enableToggle.LayoutOrder = 1
     local hitboxToggle = Factory.createToggle(mainFrame, "Show Hitbox", State.hitboxVisible, function(s) State.hitboxVisible = s end); hitboxToggle.LayoutOrder = 2
@@ -100,26 +110,23 @@ end
 
 --// [ THE ENGINE ROOM - CORE LOGIC ]
 local Box
+local function forgeDashPacket()
+    local myChar = LocalPlayer.Character; if not myChar then return nil end
+    local myHumanoid = myChar:FindFirstChildOfClass("Humanoid"); if not myHumanoid then return nil end
+    return { { { myHumanoid.MoveDirection, myHumanoid:GetState().Name, os.clock() }, [6] = false, [5] = false, [4] = false } }
+end
 local function checkThreat(h) if not h then return end for _,t in pairs(h:GetPlayingAnimationTracks()) do for _,id in ipairs(Config.Threats.Light) do if t.Animation.AnimationId==id then return"Light"end end; for _,id in ipairs(Config.Threats.Heavy) do if t.Animation.AnimationId==id then return"Heavy"end end end end
 local function onTouched(hit)
     if not State.scriptEnabled or not State.canDodge then return end;
     local enemyChar=hit.Parent; if not enemyChar then return end;
     local enemyPlayer=Players:GetPlayerFromCharacter(enemyChar); if not enemyPlayer or enemyPlayer==LocalPlayer then return end;
     local enemyHumanoid=enemyChar:FindFirstChildOfClass("Humanoid"); if not enemyHumanoid or enemyHumanoid.Health<=0 then return end;
-    
     local threat=checkThreat(enemyHumanoid);
     if threat then
-        local myChar = LocalPlayer.Character
-        if not myChar then return end
-        local myHumanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if not myHumanoid or myHumanoid.Health <= 0 then return end
-
+        local dashArgs = forgeDashPacket(); if not dashArgs then return end
         State.canDodge=false
         local d=(threat=="Light") and State.lightDodgeDelay or State.heavyDodgeDelay
-        
-        --// THE SECRET HANDSHAKE
-        TryDashEvent:FireServer(myHumanoid.MoveDirection)
-        
+        TryDashEvent:FireServer(unpack(dashArgs))
         task.wait(d)
         State.canDodge=true
     end
