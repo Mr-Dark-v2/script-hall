@@ -1,5 +1,5 @@
 --// =================================================================
---// THE MIST HUB - v8.0 (Ghost In The Shell)
+--// THE MIST HUB - v8.1 (The Final Word)
 --// =================================================================
 
 --// [ THE ARMORY - CONFIGURATION ]
@@ -84,7 +84,7 @@ local function BuildGUI()
     local fP = Instance.new("UIPadding", mainFrame); fP.PaddingLeft = UDim.new(0, 20); fP.PaddingRight = UDim.new(0, 20); fP.PaddingTop = UDim.new(0, 20); fP.PaddingBottom = UDim.new(0, 20)
     local dragBar = Instance.new("Frame", mainFrame); dragBar.Size = UDim2.new(1, 40, 0, 40); dragBar.Position = UDim2.new(0, -20, 0, -20); dragBar.BackgroundColor3 = Config.Theme.Colors.Primary; dragBar.BorderSizePixel = 0; local dC = Instance.new("UICorner", dragBar); dC.CornerRadius = UDim.new(0, 8)
     local titleLabel = Instance.new("TextLabel", dragBar); titleLabel.Size = UDim2.new(1, 0, 0, 24); titleLabel.Position = UDim2.new(0, 0, 0, -2); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Text = "THE MIST HUB"; titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextXAlignment = Enum.TextXAlignment.Center; titleLabel.TextSize = 20
-    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v8.0"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
+    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v8.1"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
     local list = Instance.new("UIListLayout", mainFrame); list.Padding = UDim.new(0, 15); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.FillDirection = Enum.FillDirection.Vertical; local listP = Instance.new("UIPadding", mainFrame); listP.PaddingTop = UDim.new(0, 40)
     
     local enableToggle = Factory.createToggle(mainFrame, "Enable System", State.scriptEnabled, function(s) State.scriptEnabled = s end); enableToggle.LayoutOrder = 1
@@ -103,16 +103,22 @@ local Box
 local function checkThreat(h) if not h then return end for _,t in pairs(h:GetPlayingAnimationTracks()) do for _,id in ipairs(Config.Threats.Light) do if t.Animation.AnimationId==id then return"Light"end end; for _,id in ipairs(Config.Threats.Heavy) do if t.Animation.AnimationId==id then return"Heavy"end end end end
 local function onTouched(hit)
     if not State.scriptEnabled or not State.canDodge then return end;
-    local char=hit.Parent; if not char then return end;
-    local p=Players:GetPlayerFromCharacter(char); if not p or p==LocalPlayer then return end;
-    local h=char:FindFirstChildOfClass("Humanoid"); if not h or h.Health<=0 then return end;
-    local threat=checkThreat(h);
+    local enemyChar=hit.Parent; if not enemyChar then return end;
+    local enemyPlayer=Players:GetPlayerFromCharacter(enemyChar); if not enemyPlayer or enemyPlayer==LocalPlayer then return end;
+    local enemyHumanoid=enemyChar:FindFirstChildOfClass("Humanoid"); if not enemyHumanoid or enemyHumanoid.Health<=0 then return end;
+    
+    local threat=checkThreat(enemyHumanoid);
     if threat then
+        local myChar = LocalPlayer.Character
+        if not myChar then return end
+        local myHumanoid = myChar:FindFirstChildOfClass("Humanoid")
+        if not myHumanoid or myHumanoid.Health <= 0 then return end
+
         State.canDodge=false
         local d=(threat=="Light") and State.lightDodgeDelay or State.heavyDodgeDelay
         
-        --// THE PSYCHIC SURGERY
-        TryDashEvent:FireServer()
+        --// THE SECRET HANDSHAKE
+        TryDashEvent:FireServer(myHumanoid.MoveDirection)
         
         task.wait(d)
         State.canDodge=true
