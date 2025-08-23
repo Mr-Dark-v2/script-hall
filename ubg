@@ -1,5 +1,5 @@
 --// =================================================================
---// DAN'S ARES MK.II DODGE SYSTEM v5.8 - The Hive Mind
+--// THE MIST HUB - v7.2
 --// =================================================================
 
 --// [ THE ARMORY - CONFIGURATION ]
@@ -9,11 +9,15 @@ local Config = {
         Heavy = { "rbxassetid://14136372505", "rbxassetid://14136346745" }
     },
     Theme = {
-        Colors = { Background = Color3.fromRGB(28, 29, 33), Primary = Color3.fromRGB(22, 23, 27), Secondary = Color3.fromRGB(45, 46, 51), Text = Color3.fromRGB(220, 220, 220), Accent = Color3.fromRGB(0, 225, 255), On = Color3.fromRGB(0, 180, 140), Off = Color3.fromRGB(255, 50, 80), },
+        Colors = { Background = Color3.fromRGB(28, 29, 33), Primary = Color3.fromRGB(22, 23, 27), Secondary = Color3.fromRGB(150, 152, 157), Text = Color3.fromRGB(220, 220, 220), Accent = Color3.fromRGB(0, 225, 255), On = Color3.fromRGB(0, 180, 140), Off = Color3.fromRGB(255, 50, 80), },
         Fonts = { Main = Enum.Font.SourceSans },
         Textures = { Icon = "rbxassetid://3926307971" }
     },
-    Settings = { MinDelay = 0.1, MaxDelay = 2.0, DefaultLightDelay = 0.3, DefaultHeavyDelay = 0.6, StepperIncrement = 0.01, BaseFontSize = 16 }
+    Settings = { MinDelay = 0.1, MaxDelay = 2.0, DefaultLightDelay = 0.3, DefaultHeavyDelay = 0.6, StepperIncrement = 0.01 },
+    Responsive = {
+        BaseSize = Vector2.new(340, 440),
+        ScaleToShortestSideRatio = 0.75 -- FIX: Made smaller (was 0.85)
+    }
 }
 
 --// [ THE GHOST - SERVICES & STATE ]
@@ -24,11 +28,10 @@ local State = { scriptEnabled = true, canDodge = true, hitboxVisible = true, hit
 
 --// [ THE ROBOT FACTORY - UI COMPONENT BUILDERS ]
 local Factory = {}
-local function getScaledTextSize(multiplier) multiplier = multiplier or 1; local viewportY = workspace.Camera.ViewportSize.Y; local scale = viewportY / 1080; return math.clamp(math.floor((Config.Settings.BaseFontSize * multiplier) * scale), 8, 50) end
 
 function Factory.createToggle(parent, title, initialState, callback)
     local holder = Instance.new("Frame", parent); holder.Size = UDim2.new(1, 0, 0, 30); holder.BackgroundTransparency = 1
-    local label = Instance.new("TextLabel", holder); label.Size = UDim2.new(0.6, 0, 1, 0); label.BackgroundTransparency = 1; label.TextColor3 = Config.Theme.Colors.Text; label.Text = title; label.Font = Config.Theme.Fonts.Main; label.TextXAlignment = Enum.TextXAlignment.Left; label.TextSize = getScaledTextSize()
+    local label = Instance.new("TextLabel", holder); label.Size = UDim2.new(0.6, 0, 1, 0); label.BackgroundTransparency = 1; label.TextColor3 = Config.Theme.Colors.Text; label.Text = title; label.Font = Config.Theme.Fonts.Main; label.TextXAlignment = Enum.TextXAlignment.Left; label.TextSize = 16
     local switch = Instance.new("TextButton", holder); switch.Size = UDim2.new(0, 50, 0, 25); switch.Position = UDim2.new(1, -50, 0.5, -12.5); local c = initialState and Config.Theme.Colors.On or Config.Theme.Colors.Off; switch.BackgroundColor3 = c; switch.Text = ""; local sc = Instance.new("UICorner", switch); sc.CornerRadius = UDim.new(1, 0)
     local knob = Instance.new("Frame", switch); knob.Size = UDim2.new(0, 21, 0, 21); knob.Position = initialState and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5); knob.BackgroundColor3 = Color3.new(1, 1, 1); local kc = Instance.new("UICorner", knob); kc.CornerRadius = UDim.new(1, 0)
     local s = initialState; switch.MouseEnter:Connect(function() TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = c:Lerp(Color3.new(1,1,1), 0.1)}):Play() end); switch.MouseLeave:Connect(function() TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = c}):Play() end)
@@ -38,18 +41,18 @@ end
 
 function Factory.createHybridSlider(parent, title, minVal, maxVal, initialVal, callback)
     local holder = Instance.new("Frame", parent); holder.Size = UDim2.new(1, 0, 0, 90); holder.BackgroundTransparency = 1
-    local titleLabel = Instance.new("TextLabel", holder); titleLabel.Size = UDim2.new(1, 0, 0, 20); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Font = Config.Theme.Fonts.Main; titleLabel.TextXAlignment = Enum.TextXAlignment.Left; titleLabel.Text = title; titleLabel.TextSize = getScaledTextSize(0.9)
-    local valueDisplay = Instance.new("TextButton", holder); valueDisplay.Size = UDim2.new(1, 0, 0, 30); valueDisplay.Position = UDim2.new(0,0,0,20); valueDisplay.BackgroundColor3 = Config.Theme.Colors.Primary; valueDisplay.TextColor3 = Color3.new(1,1,1); valueDisplay.Font = Config.Theme.Fonts.Main; local vdC = Instance.new("UICorner", valueDisplay); vdC.CornerRadius = UDim.new(0,4); valueDisplay.TextSize = getScaledTextSize(1.8); valueDisplay.Text = ""
-    local valueInput = Instance.new("TextBox", valueDisplay); valueInput.Size = UDim2.new(1, 0, 1, 0); valueInput.BackgroundTransparency = 1; valueInput.TextColor3 = Color3.new(1,1,1); valueInput.Font = Config.Theme.Fonts.Main; valueInput.TextXAlignment = Enum.TextXAlignment.Center; valueInput.ClearTextOnFocus = false; valueInput.Visible = false; valueInput.TextSize = getScaledTextSize(1.8)
+    local titleLabel = Instance.new("TextLabel", holder); titleLabel.Size = UDim2.new(1, 0, 0, 20); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Font = Config.Theme.Fonts.Main; titleLabel.TextXAlignment = Enum.TextXAlignment.Left; titleLabel.Text = title; titleLabel.TextSize = 14
+    local valueDisplay = Instance.new("TextButton", holder); valueDisplay.Size = UDim2.new(1, 0, 0, 30); valueDisplay.Position = UDim2.new(0,0,0,20); valueDisplay.BackgroundColor3 = Config.Theme.Colors.Primary; valueDisplay.TextColor3 = Color3.new(1,1,1); valueDisplay.Font = Config.Theme.Fonts.Main; local vdC = Instance.new("UICorner", valueDisplay); vdC.CornerRadius = UDim.new(0,4); valueDisplay.TextSize = 28; valueDisplay.Text = ""
+    local valueInput = Instance.new("TextBox", valueDisplay); valueInput.Size = UDim2.new(1, 0, 1, 0); valueInput.BackgroundTransparency = 1; valueInput.TextColor3 = Color3.new(1,1,1); valueInput.Font = Config.Theme.Fonts.Main; valueInput.TextXAlignment = Enum.TextXAlignment.Center; valueInput.ClearTextOnFocus = false; valueInput.Visible = false; valueInput.TextSize = 28
     local sliderHolder = Instance.new("Frame", holder); sliderHolder.Size = UDim2.new(1, 0, 0, 30); sliderHolder.Position = UDim2.new(0, 0, 1, -30); sliderHolder.BackgroundTransparency = 1
     local btnSize = 30
-    local stepMinus = Instance.new("TextButton", sliderHolder); stepMinus.Size = UDim2.new(0, btnSize, 0, btnSize); stepMinus.BackgroundColor3 = Config.Theme.Colors.Primary; stepMinus.Text = "-"; stepMinus.TextColor3 = Config.Theme.Colors.Text; stepMinus.Font = Config.Theme.Fonts.Main; stepMinus.TextSize = getScaledTextSize(1.5); local smC = Instance.new("UICorner", stepMinus); smC.CornerRadius = UDim.new(0, 4)
-    local stepPlus = Instance.new("TextButton", sliderHolder); stepPlus.Size = UDim2.new(0, btnSize, 0, btnSize); stepPlus.Position = UDim2.new(1, -btnSize, 0, 0); stepPlus.BackgroundColor3 = Config.Theme.Colors.Primary; stepPlus.Text = "+"; stepPlus.TextColor3 = Config.Theme.Colors.Text; stepPlus.Font = Config.Theme.Fonts.Main; stepPlus.TextSize = getScaledTextSize(1.5); local spC = Instance.new("UICorner", stepPlus); spC.CornerRadius = UDim.new(0, 4)
+    local stepMinus = Instance.new("TextButton", sliderHolder); stepMinus.Size = UDim2.new(0, btnSize, 0, btnSize); stepMinus.BackgroundColor3 = Config.Theme.Colors.Primary; stepMinus.Text = "-"; stepMinus.TextColor3 = Config.Theme.Colors.Text; stepMinus.Font = Config.Theme.Fonts.Main; stepMinus.TextSize = 24; local smC = Instance.new("UICorner", stepMinus); smC.CornerRadius = UDim.new(0, 4)
+    local stepPlus = Instance.new("TextButton", sliderHolder); stepPlus.Size = UDim2.new(0, btnSize, 0, btnSize); stepPlus.Position = UDim2.new(1, -btnSize, 0, 0); stepPlus.BackgroundColor3 = Config.Theme.Colors.Primary; stepPlus.Text = "+"; stepPlus.TextColor3 = Config.Theme.Colors.Text; stepPlus.Font = Config.Theme.Fonts.Main; stepPlus.TextSize = 24; local spC = Instance.new("UICorner", stepPlus); spC.CornerRadius = UDim.new(0, 4)
     local track = Instance.new("Frame", sliderHolder); track.Size = UDim2.new(1, -btnSize*2 - 20, 0, 8); track.Position = UDim2.new(0, btnSize + 10, 0.5, -4); track.BackgroundColor3 = Config.Theme.Colors.Primary; local tC = Instance.new("UICorner", track); tC.CornerRadius = UDim.new(1, 0)
     local fill = Instance.new("Frame", track); fill.Size = UDim2.new(0, 0, 1, 0); fill.BackgroundColor3 = Config.Theme.Colors.Accent; local fC = Instance.new("UICorner", fill); fC.CornerRadius = UDim.new(1, 0)
     local thumb = Instance.new("Frame", track); thumb.Size = UDim2.new(0, 18, 0, 18); thumb.Position = UDim2.new(0, -9, 0.5, -9); thumb.BackgroundColor3 = Color3.new(1, 1, 1); local thC = Instance.new("UICorner", thumb); thC.CornerRadius = UDim.new(1, 0)
-    local minLabel = Instance.new("TextLabel", sliderHolder); minLabel.Size = UDim2.new(0,50,0,12); minLabel.Position = UDim2.new(0,0,1,0); minLabel.BackgroundTransparency=1; minLabel.TextColor3=Config.Theme.Colors.Text; minLabel.Text=tostring(minVal).."s"; minLabel.TextXAlignment=Enum.TextXAlignment.Left; minLabel.TextSize=getScaledTextSize(0.85)
-    local maxLabel = Instance.new("TextLabel", sliderHolder); maxLabel.Size = UDim2.new(0,50,0,12); maxLabel.Position = UDim2.new(1,-50,1,0); maxLabel.BackgroundTransparency=1; maxLabel.TextColor3=Config.Theme.Colors.Text; maxLabel.Text=tostring(maxVal).."s"; maxLabel.TextXAlignment=Enum.TextXAlignment.Right; maxLabel.TextSize=getScaledTextSize(0.85)
+    local minLabel = Instance.new("TextLabel", sliderHolder); minLabel.Size = UDim2.new(0,50,0,12); minLabel.Position = UDim2.new(0,0,1,0); minLabel.BackgroundTransparency=1; minLabel.TextColor3=Config.Theme.Colors.Text; minLabel.Text=tostring(minVal).."s"; minLabel.TextXAlignment=Enum.TextXAlignment.Left; minLabel.TextSize = 12
+    local maxLabel = Instance.new("TextLabel", sliderHolder); maxLabel.Size = UDim2.new(0,50,0,12); maxLabel.Position = UDim2.new(1,-50,1,0); maxLabel.BackgroundTransparency=1; maxLabel.TextColor3=Config.Theme.Colors.Text; maxLabel.Text=tostring(maxVal).."s"; maxLabel.TextXAlignment=Enum.TextXAlignment.Right; maxLabel.TextSize = 12
     local currentVal = initialVal
     local function update(val, isTyping) currentVal = math.clamp(val, minVal, maxVal); if not isTyping then callback(currentVal) end; local pct = (currentVal - minVal) / (maxVal - minVal); valueDisplay.Text = string.format("%.2fs", currentVal); TweenService:Create(thumb, TweenInfo.new(0.15), {Position = UDim2.new(pct, 0, 0.5, -9)}):Play(); TweenService:Create(fill, TweenInfo.new(0.15), {Size = UDim2.new(pct, 0, 1, 0)}):Play() end;
     valueDisplay.MouseButton1Click:Connect(function() valueInput.Visible = true; valueInput.Text = tostring(math.floor(currentVal * 100) / 100); valueInput:CaptureFocus() end)
@@ -64,17 +67,29 @@ function Factory.createSeparator(parent) local sep = Instance.new("Frame", paren
 
 --// [ THE FOREMAN - FULL GUI ASSEMBLY ]
 local function BuildGUI()
-    local MIN_SIZE = Vector2.new(340, 440)
-    local screenGui = Instance.new("ScreenGui"); screenGui.Name = "AresMKII_GUI"; screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local mainFrame = Instance.new("Frame", screenGui); mainFrame.Size = UDim2.new(0.18, 0, 0.4, 0); mainFrame.Position = UDim2.new(0.05, 0, 0.5, -MIN_SIZE.Y / 2); mainFrame.BackgroundColor3 = Config.Theme.Colors.Background; mainFrame.BorderSizePixel = 0; local sC = Instance.new("UISizeConstraint", mainFrame); sC.MinSize = MIN_SIZE; local fC = Instance.new("UICorner", mainFrame); fC.CornerRadius = UDim.new(0, 8); local fA = Instance.new("UIAspectRatioConstraint", mainFrame); fA.AspectRatio = MIN_SIZE.X / MIN_SIZE.Y
+    local screenGui = Instance.new("ScreenGui"); screenGui.Name = "TheMistHub_GUI"; screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local uiScale = Instance.new("UIScale", screenGui)
+    RunService.RenderStepped:Connect(function()
+        local viewport = workspace.Camera.ViewportSize
+        local shortestSide = math.min(viewport.X, viewport.Y)
+        local scaleFactor = (shortestSide * Config.Responsive.ScaleToShortestSideRatio) / Config.Responsive.BaseSize.Y
+        uiScale.Scale = scaleFactor
+    end)
+
+    local mainFrame = Instance.new("Frame", screenGui); mainFrame.Size = UDim2.new(0, Config.Responsive.BaseSize.X, 0, Config.Responsive.BaseSize.Y); mainFrame.Position = UDim2.new(0, 50, 0.5, 0); mainFrame.AnchorPoint = Vector2.new(0, 0.5); mainFrame.BackgroundColor3 = Config.Theme.Colors.Background; mainFrame.BorderSizePixel = 0;
+    local fC = Instance.new("UICorner", mainFrame); fC.CornerRadius = UDim.new(0, 8);
     local fP = Instance.new("UIPadding", mainFrame); fP.PaddingLeft = UDim.new(0, 20); fP.PaddingRight = UDim.new(0, 20); fP.PaddingTop = UDim.new(0, 20); fP.PaddingBottom = UDim.new(0, 20)
     local dragBar = Instance.new("Frame", mainFrame); dragBar.Size = UDim2.new(1, 40, 0, 40); dragBar.Position = UDim2.new(0, -20, 0, -20); dragBar.BackgroundColor3 = Config.Theme.Colors.Primary; dragBar.BorderSizePixel = 0; local dC = Instance.new("UICorner", dragBar); dC.CornerRadius = UDim.new(0, 8)
-    local titleIcon = Instance.new("ImageLabel", dragBar); titleIcon.Size = UDim2.new(0, 22, 0, 22); titleIcon.Position = UDim2.new(0, 10, 0.5, -11); titleIcon.BackgroundTransparency = 1; titleIcon.Image = Config.Theme.Textures.Icon; titleIcon.ImageColor3 = Config.Theme.Colors.Text
-    local titleLabel = Instance.new("TextLabel", dragBar); titleLabel.Size = UDim2.new(1, -38, 1, 0); titleLabel.Position = UDim2.new(0, 38, 0, 0); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Text = "Ares Dodge System"; titleLabel.Font = Config.Theme.Fonts.Main; titleLabel.TextXAlignment = Enum.TextXAlignment.Left; titleLabel.TextSize = getScaledTextSize(1.2)
+    
+    --// FIX: Title and Subtitle Rebranding
+    local titleIcon = Instance.new("ImageLabel", dragBar); titleIcon.Visible = false -- Hide icon for cleaner look
+    local titleLabel = Instance.new("TextLabel", dragBar); titleLabel.Size = UDim2.new(1, 0, 0, 24); titleLabel.Position = UDim2.new(0, 0, 0, -2); titleLabel.BackgroundTransparency = 1; titleLabel.TextColor3 = Config.Theme.Colors.Text; titleLabel.Text = "THE MIST HUB"; titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextXAlignment = Enum.TextXAlignment.Center; titleLabel.TextSize = 20
+    local subtitleLabel = Instance.new("TextLabel", dragBar); subtitleLabel.Size = UDim2.new(1, 0, 0, 14); subtitleLabel.Position = UDim2.new(0, 0, 0, 22); subtitleLabel.BackgroundTransparency = 1; subtitleLabel.TextColor3 = Config.Theme.Colors.Secondary; subtitleLabel.Text = "UBG auto dodge module-v7.2"; subtitleLabel.Font = Config.Theme.Fonts.Main; subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center; subtitleLabel.TextSize = 12
+    
     local list = Instance.new("UIListLayout", mainFrame); list.Padding = UDim.new(0, 15); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.FillDirection = Enum.FillDirection.Vertical; local listP = Instance.new("UIPadding", mainFrame); listP.PaddingTop = UDim.new(0, 40)
     
     local enableToggle = Factory.createToggle(mainFrame, "Enable System", State.scriptEnabled, function(s) State.scriptEnabled = s end); enableToggle.LayoutOrder = 1
-    --// THE FIX IS HERE (Part 1) - The callback ONLY changes the state.
     local hitboxToggle = Factory.createToggle(mainFrame, "Show Hitbox", State.hitboxVisible, function(s) State.hitboxVisible = s end); hitboxToggle.LayoutOrder = 2
     local separator = Factory.createSeparator(mainFrame); separator.LayoutOrder = 3
     local lightSlider = Factory.createHybridSlider(mainFrame, "Light Attack Delay", Config.Settings.MinDelay, Config.Settings.MaxDelay, State.lightDodgeDelay, function(v) State.lightDodgeDelay = v end); lightSlider.LayoutOrder = 4
@@ -82,27 +97,21 @@ local function BuildGUI()
 
     local d,dS,sP;dragBar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then d,dS,sP=true,i.Position,mainFrame.Position end end);dragBar.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then d=false end end);UserInputService.InputChanged:Connect(function(i) if d and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then local delta=i.Position-dS;mainFrame.Position=UDim2.new(sP.X.Scale,sP.X.Offset+delta.X,sP.Y.Scale,sP.Y.Offset+delta.Y) end end)
     
-    mainFrame.Position = UDim2.new(0.05, 0, 1, 0); screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui"); TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0.05, 0, 0.5, -MIN_SIZE.Y / 2)}):Play()
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
 --// [ THE ENGINE ROOM - CORE LOGIC ]
 local Box
 local function checkThreat(h) if not h then return end for _,t in pairs(h:GetPlayingAnimationTracks()) do for _,id in ipairs(Config.Threats.Light) do if t.Animation.AnimationId==id then return"Light"end end; for _,id in ipairs(Config.Threats.Heavy) do if t.Animation.AnimationId==id then return"Heavy"end end end end
 local function onTouched(hit) if not State.scriptEnabled or not State.canDodge then return end; local char=hit.Parent; if not char then return end; local p=Players:GetPlayerFromCharacter(char); if not p or p==LocalPlayer then return end; local h=char:FindFirstChildOfClass("Humanoid"); if not h or h.Health<=0 then return end; local threat=checkThreat(h); if threat then State.canDodge=false; local d=(threat=="Light") and State.lightDodgeDelay or State.heavyDodgeDelay; keypress(32); task.wait(0.05); keyrelease(32); task.wait(d); State.canDodge=true end end
-local function setupCharacter(c)
-    if Box then Box:Destroy() end
-    local hrp=c:WaitForChild("HumanoidRootPart",10); -- FIX: The critical typo is gone.
-    if not hrp then return end
-    Box=Instance.new("Part"); Box.Name="AresHitbox"; Box.Size=Vector3.new(State.hitboxSize,State.hitboxSize,State.hitboxSize); Box.Anchored=false; Box.CanCollide=false; Box.Transparency=State.hitboxVisible and 0.6 or 1; Box.Color=Config.Theme.Colors.Accent; Box.Material=Enum.Material.Neon; Box.Parent=workspace; Box.Touched:Connect(onTouched)
-    local w=Instance.new("Weld"); w.Part0=hrp; w.Part1=Box; w.C0=CFrame.new(); w.C1=CFrame.new(); w.Parent=hrp
-end
+local function setupCharacter(c) if Box then Box:Destroy() end; local hrp=c:WaitForChild("HumanoidRootPart",10); if not hrp then return end; Box=Instance.new("Part"); Box.Name="MistHubHitbox"; Box.Size=Vector3.new(State.hitboxSize,State.hitboxSize,State.hitboxSize); Box.Anchored=false; Box.CanCollide=false; Box.Transparency=State.hitboxVisible and 0.6 or 1; Box.Color=Config.Theme.Colors.Accent; Box.Material=Enum.Material.Neon; Box.Parent=workspace; Box.Touched:Connect(onTouched); local w=Instance.new("Weld"); w.Part0=hrp; w.Part1=Box; w.C0=CFrame.new(); w.C1=CFrame.new(); w.Parent=hrp end
 
 --// [ IGNITION ]
 BuildGUI()
 if LocalPlayer.Character then setupCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
---// THE FIX IS HERE (Part 2) - The Hive Mind enforces the state every frame.
+--// THE HIVE MIND
 RunService.RenderStepped:Connect(function()
     if Box and Box.Parent then
         local targetTransparency = State.hitboxVisible and 0.6 or 1
