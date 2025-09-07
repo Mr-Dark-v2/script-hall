@@ -935,4 +935,4 @@ setupButtonEvents(selectMainButton, selectMainStroke, togglePlayerSelectionWindo
 --==============================================================================
 wait(1)
 playIntro()
-animateGradient()```
+animateGradient()
