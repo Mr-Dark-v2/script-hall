@@ -251,12 +251,12 @@ local function createLuxurySearchBar(parent)
     return searchBar
 end
 
--- ✅ PET CARD CREATOR — WITH BUTTON SLIGHTLY LOWER
+-- ✅ PET CARD CREATOR — WITH BUTTON REPOSITIONED + LESS EXPANSION
 local function createPetCard(parent, petName, mutation, statText)
     -- Define the three visual states for the card
     local restingSize = UDim2.new(1, 0, 0, 70)
     local hoverSize = UDim2.new(1.03, 0, 0, 72.1)
-    local expandedSize = UDim2.new(1.03, 0, 0, 82) -- Less expansion
+    local expandedSize = UDim2.new(1.03, 0, 0, 78) -- ✅ REDUCED FROM 82 → 78 (less expansion)
     local restingPosition = UDim2.new(0, 0, 0, 0)
     local hoverPosition = UDim2.new(-0.015, 0, 0, 0)
 
@@ -339,11 +339,11 @@ local function createPetCard(parent, petName, mutation, statText)
     statLabel.TextXAlignment = Enum.TextXAlignment.Left
     statLabel.TextTransparency = 0.5
 
-    -- "Join Server" button — MOVED SLIGHTLY DOWN
+    -- "Join Server" button — MOVED LOWER + RIGHT
     local joinButton = Instance.new("TextButton")
     joinButton.Size = UDim2.new(0, 75, 0, 24)
     joinButton.AnchorPoint = Vector2.new(1, 1)
-    joinButton.Position = UDim2.new(1, -8, 1, -2) -- ✅ MOVED DOWN: -4 → -2 (slightly lower)
+    joinButton.Position = UDim2.new(1, -4, 1, 0) -- ✅ MOVED: X=-8→-4, Y=-2→0
     joinButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
     joinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     joinButton.Text = "JOIN"
@@ -385,7 +385,7 @@ local function createPetCard(parent, petName, mutation, statText)
     end
 
     local function enterSelectedState()
-        TweenService:Create(card, tweenInfo, { Size = expandedSize, Position = hoverPosition, ZIndex = 3 }):Play()
+        TweenService:Create(card, tweenInfo, { Size = expandedSize, Position = hoverPosition, ZIndex = 3 }):Play() -- ✅ LESS EXPANSION
         TweenService:Create(cardOutline, tweenInfo, { Thickness = 1.5 }):Play()
         TweenService:Create(shadow, tweenInfo, { Position = UDim2.new(-0.02, 0, -0.03, 0), ImageTransparency = 0.8 }):Play()
         TweenService:Create(mutationLabel, tweenInfo, { TextTransparency = 0.2 }):Play()
