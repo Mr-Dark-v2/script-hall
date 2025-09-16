@@ -1,0 +1,196 @@
+-- â–‚â–ƒâ–…â–‡â–ˆ Dio Demo â–ˆâ–‡â–…â–ƒâ–‚
+-- Definitive Edition with integrated Smooth Fading Beam and GUI Toggle.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- â– â– â–  CONFIRMED ANIMATION ID â– â– â– 
+local BLOCK_ANIMATION_ID = "rbxassetid://14724854935"
+
+-- â– â– â–  CONFIGURATION â– â– â– 
+local Config = {
+	DYNAMIC_MODE = true, BASE_RADIUS = 10, SPEED_SCALE = 0.05, MIN_RADIUS = 5, MAX_RADIUS = 20,
+	PREDICTION_WINDOWS = {0.05, 0.15, 0.25}, DIRECTIONAL_THRESHOLD = 0.3,
+	GLOBAL_COOLDOWN = 0.1, PER_BALL_COOLDOWN = 0.3,
+}
+
+-- â– â– â–  BEAM & COLOR CONFIGURATION â– â– â– 
+local COLOR_PALETTE = {
+    Color3.fromRGB(255, 255, 255), -- White
+    Color3.fromRGB(150, 150, 150), -- Grey
+    Color3.fromRGB(0, 0, 0),       -- Black
+    Color3.fromRGB(150, 150, 150)  -- Grey (to smoothly return to white)
+}
+local TRANSITION_SPEED = 1.5 -- seconds
+
+-- â– â– â–  GUI-CONTROLLED STATE â– â– â– 
+local State = {
+    AutoBlock = true,
+    Visuals = true, -- Controls the spheres
+    Beam = true     -- Controls the new beam
+}
+
+-- â– â– â–  REMOTE EVENTS â– â– â– 
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local startBlockEvent = remotes:WaitForChild("StartBlockEvent")
+local blockEvent = remotes:WaitForChild("BlockEvent")
+
+-- â– â– â–  SCRIPT STATE â– â– â– 
+local canBlockGlobal = true
+local lastGlobalBlock = 0
+local blockedBalls = setmetatable({}, {__mode = "k"})
+local isPlayingAnimation = false
+-- Visuals State
+local playerSphere, ballSphere = nil, nil
+-- Beam State
+local currentBeam, playerAttachment = nil, nil
+local colorIndex, transitionProgress = 1, 0
+
+-- â– â– â–  ANIMATION HANDLER â– â– â– 
+local function playBlockAnimation()
+	if not character or not character.Parent or isPlayingAnimation then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then return end
+	isPlayingAnimation = true
+	local anim = Instance.new("Animation")
+	anim.AnimationId = BLOCK_ANIMATION_ID
+	local animTrack = animator:LoadAnimation(anim)
+	animTrack:Play()
+	animTrack.Ended:Wait()
+	isPlayingAnimation = false
+	anim:Destroy()
+end
+
+-- â– â– â–  VISUALS SETUP (SPHERES & BEAM) â– â– â– 
+local function setupSpheres()
+	if playerSphere then playerSphere:Destroy() end
+	if ballSphere then ballSphere:Destroy() end
+	if not hrp then return end
+	local function createSphereShell(parent, radius, color)
+		local shell = Instance.new("Part")
+		shell.Name = "SphereShell"; shell.Shape = Enum.PartType.Ball; shell.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+		shell.Color = color; shell.Material = Enum.Material.ForceField; shell.Transparency = 0.7; shell.CanCollide = false
+		shell.CanTouch = false; shell.CanQuery = false; shell.Anchored = true; shell.CastShadow = false; shell.Parent = parent
+		return shell
+	end
+	playerSphere = createSphereShell(hrp, Config.BASE_RADIUS, Color3.fromRGB(0, 255, 255))
+	ballSphere = createSphereShell(hrp, 10, Color3.fromRGB(255, 100, 100))
+end
+
+local function setupBeamSystem(char)
+    if currentBeam then currentBeam:Destroy() end
+    if playerAttachment then playerAttachment:Destroy() end
+    if not char then return end
+    local rootPart = char:WaitForChild("HumanoidRootPart")
+    if not rootPart then return end
+    playerAttachment = Instance.new("Attachment", rootPart)
+    playerAttachment.Name = "PlayerBeamAttach"
+    currentBeam = Instance.new("Beam", rootPart)
+    currentBeam.Name = "FadingBeam"; currentBeam.Attachment0 = playerAttachment; currentBeam.FaceCamera = true
+    currentBeam.Width0 = 0.3; currentBeam.Width1 = 0.3; currentBeam.LightEmission = 1; currentBeam.Transparency = NumberSequence.new(0)
+    currentBeam.Enabled = false; currentBeam.Color = ColorSequence.new(COLOR_PALETTE[1])
+    colorIndex, transitionProgress = 1, 0
+end
+
+-- â– â– â–  MAIN LOOP â€” CORE LOGIC & VISUAL UPDATES â– â– â– 
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not character or not character.Parent or not hrp or not hrp.Parent then
+		character = player.Character
+		if character then hrp = character:FindFirstChild("HumanoidRootPart") end
+		return
+	end
+
+	local playerPos = hrp.Position
+	local ball = Workspace:FindFirstChild("Ball")
+
+	-- Update Sphere Visuals
+	if playerSphere then playerSphere.Transparency = State.Visuals and 0.7 or 1 end
+	if ballSphere then ballSphere.Transparency = (ball and State.Visuals) and 0.7 or 1 end
+    if State.Visuals and playerSphere and ballSphere and playerSphere.Parent and ballSphere.Parent then
+        local function getDynamicRadius() return math.clamp(Config.BASE_RADIUS + (ball and ball.Velocity.Magnitude * Config.SPEED_SCALE or 0), Config.MIN_RADIUS, Config.MAX_RADIUS) end
+        playerSphere.Size = Vector3.one * getDynamicRadius() * 2; playerSphere.Position = playerPos
+        if ball then ballSphere.Size = Vector3.one * (playerPos - ball.Position).Magnitude * 2; ballSphere.Position = playerPos end
+    end
+    
+	-- Update Beam Visual
+	if State.Beam and currentBeam then
+        if ball and ball:IsA("BasePart") then
+            local ballAttachment = ball:FindFirstChild("BallBeamAttach") or Instance.new("Attachment", ball)
+            ballAttachment.Name = "BallBeamAttach"
+            currentBeam.Attachment1 = ballAttachment; currentBeam.Enabled = true
+            transitionProgress += (deltaTime / TRANSITION_SPEED)
+            if transitionProgress >= 1 then
+                transitionProgress = 0; colorIndex += 1
+                if colorIndex > #COLOR_PALETTE then colorIndex = 1 end
+            end
+            local currentColor = COLOR_PALETTE[colorIndex]
+            local nextColor = COLOR_PALETTE[(colorIndex % #COLOR_PALETTE) + 1]
+            currentBeam.Color = ColorSequence.new(currentColor:Lerp(nextColor, transitionProgress))
+        else
+            currentBeam.Enabled = false
+        end
+    elseif currentBeam then
+        currentBeam.Enabled = false
+    end
+
+	-- Auto Block Logic
+	if not State.AutoBlock or not canBlockGlobal or not ball or not ball:IsA("BasePart") then return end
+	if tick() - lastGlobalBlock < Config.GLOBAL_COOLDOWN then return end
+	if blockedBalls[ball] and tick() - blockedBalls[ball] < Config.PER_BALL_COOLDOWN then return end
+	local triggerDistance = (Config.DYNAMIC_MODE and math.clamp(Config.BASE_RADIUS + (ball.Velocity.Magnitude * Config.SPEED_SCALE), Config.MIN_RADIUS, Config.MAX_RADIUS) or Config.BASE_RADIUS) + (ball.Size.X/2)
+	if (playerPos - ball.Position).Unit:Dot(ball.Velocity.Unit) < Config.DIRECTIONAL_THRESHOLD then return end
+	local shouldBlock = false
+	for _, dt in ipairs(Config.PREDICTION_WINDOWS) do
+		if (playerPos - (ball.Position + ball.Velocity * dt)).Magnitude <= triggerDistance then shouldBlock = true; break end
+	end
+	if not shouldBlock then return end
+
+	-- âœ… TRIGGER BLOCK
+	canBlockGlobal = false; lastGlobalBlock = tick(); blockedBalls[ball] = tick()
+	task.spawn(playBlockAnimation)
+	startBlockEvent:FireServer(tick(), ball); blockEvent:FireServer(ball)
+	task.delay(Config.GLOBAL_COOLDOWN, function() canBlockGlobal = true end)
+end)
+
+-- â– â– â–  CHARACTER RESPAWN HANDLER â– â– â– 
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	hrp = newChar:WaitForChild("HumanoidRootPart")
+	canBlockGlobal = true; blockedBalls = setmetatable({}, {__mode = "k"}); isPlayingAnimation = false
+	setupSpheres()
+    setupBeamSystem(newChar)
+end)
+
+-- â– â– â–  DRAGGABLE GUI â– â– â– 
+local function createControlGUI()
+	if CoreGui:FindFirstChild("DioDemoGUI") then CoreGui:FindFirstChild("DioDemoGUI"):Destroy() end
+	local gui = Instance.new("ScreenGui"); gui.Name = "DioDemoGUI"; gui.ResetOnSpawn = false; gui.ZIndexBehavior = Enum.ZIndexBehavior.Global; gui.Parent = CoreGui
+	local frame = Instance.new("Frame"); frame.Size = UDim2.new(0, 220, 0, 170); frame.Position = UDim2.new(0, 20, 0, 20); frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35); frame.BorderColor3 = Color3.fromRGB(70, 70, 80); frame.BorderSizePixel = 2; frame.Active = true; frame.Draggable = true; frame.Parent = gui
+	local title = Instance.new("TextLabel"); title.Size = UDim2.new(1, 0, 0, 30); title.BackgroundColor3 = Color3.fromRGB(45, 45, 50); title.Text = "Dio Demo"; title.TextColor3 = Color3.fromRGB(255, 255, 255); title.Font = Enum.Font.GothamBold; title.TextSize = 16; title.Parent = frame
+	local function createToggle(name, yPos, defaultState, onChange)
+		local button = Instance.new("TextButton"); button.Size = UDim2.new(1, -20, 0, 30); button.Position = UDim2.new(0, 10, 0, yPos); button.Font = Enum.Font.GothamBold; button.TextSize = 14; button.TextColor3 = Color3.fromRGB(255, 255, 255); button.Parent = frame
+		local function updateButtonState(state) button.Text = name .. ": " .. (state and "ON" or "OFF"); button.BackgroundColor3 = state and Color3.fromRGB(40, 120, 70) or Color3.fromRGB(120, 40, 40); onChange(state) end
+		button.MouseButton1Click:Connect(function() updateButtonState(not (button.BackgroundColor3 == Color3.fromRGB(40, 120, 70))) end)
+		updateButtonState(defaultState)
+	end
+	createToggle("Auto Block", 40, State.AutoBlock, function(v) State.AutoBlock = v end)
+	createToggle("Visuals", 80, State.Visuals, function(v) State.Visuals = v end)
+    createToggle("Beam", 120, State.Beam, function(v) State.Beam = v end)
+	UserInputService.InputBegan:Connect(function(input, gp) if not gp and input.KeyCode == Enum.KeyCode.B then gui.Enabled = not gui.Enabled end end)
+end
+
+-- â– â– â–  INITIALIZATION â– â– â– 
+setupSpheres()
+setupBeamSystem(character)
+createControlGUI()
+print("âœ… Dio Demo [Definitive Edition] ACTIVE. Press 'B' to toggle settings.")
