@@ -1,0 +1,244 @@
+-- ▂▃▅▇█ Dio Demo — Definitive Edition with Perfect Intercept Prediction █▇▅▃▂
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- ⚡ Animation ID
+local BLOCK_ANIMATION_ID = "rbxassetid://14724854935"
+
+-- ⚙️ Config
+local Config = {
+	DYNAMIC_MODE = true,
+	BASE_RADIUS = 10,
+	SPEED_SCALE = 0.05,
+	MIN_RADIUS = 5,
+	MAX_RADIUS = 20,
+	GLOBAL_COOLDOWN = 0.1,
+	PER_BALL_COOLDOWN = 0.1,
+	SAFETY_OFFSET = 0.05, -- seconds early
+	MAX_SCAN_TIME = 3     -- lookahead max seconds
+}
+
+-- 🌈 Beam Colors
+local COLOR_PALETTE = {
+    Color3.fromRGB(255, 255, 255), -- White
+    Color3.fromRGB(150, 150, 150), -- Grey
+    Color3.fromRGB(0, 0, 0),       -- Black
+    Color3.fromRGB(150, 150, 150)  -- Grey again
+}
+local TRANSITION_SPEED = 1.5
+
+-- 🎛️ State
+local State = {AutoBlock = true, Visuals = true, Beam = true}
+local canBlockGlobal, lastGlobalBlock = true, 0
+local blockedBalls = setmetatable({}, {__mode = "k"})
+local isPlayingAnimation = false
+local playerSphere, ballSphere = nil, nil
+local currentBeam, playerAttachment = nil, nil
+local colorIndex, transitionProgress = 1, 0
+
+-- 🔌 Remotes
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local startBlockEvent = remotes:WaitForChild("StartBlockEvent")
+local blockEvent = remotes:WaitForChild("BlockEvent")
+
+-- 🎥 Play Block Animation
+local function playBlockAnimation()
+	if not character or not character.Parent or isPlayingAnimation then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then return end
+	isPlayingAnimation = true
+	local anim = Instance.new("Animation")
+	anim.AnimationId = BLOCK_ANIMATION_ID
+	local track = animator:LoadAnimation(anim)
+	track:Play()
+	track.Ended:Wait()
+	isPlayingAnimation = false
+	anim:Destroy()
+end
+
+-- 🔮 Spheres Setup
+local function setupSpheres()
+	if playerSphere then playerSphere:Destroy() end
+	if ballSphere then ballSphere:Destroy() end
+	if not hrp then return end
+	local function makeSphere(parent, radius, color)
+		local p = Instance.new("Part")
+		p.Shape = Enum.PartType.Ball
+		p.Size = Vector3.new(radius*2, radius*2, radius*2)
+		p.Color = color
+		p.Material = Enum.Material.ForceField
+		p.Transparency = 0.7
+		p.CanCollide, p.CanTouch, p.CanQuery, p.Anchored, p.CastShadow = false, false, false, true, false
+		p.Parent = parent
+		return p
+	end
+	playerSphere = makeSphere(hrp, Config.BASE_RADIUS, Color3.fromRGB(0,255,255))
+	ballSphere   = makeSphere(hrp, 10, Color3.fromRGB(255,100,100))
+end
+
+-- 🔦 Beam Setup
+local function setupBeamSystem(char)
+    if currentBeam then currentBeam:Destroy() end
+    if playerAttachment then playerAttachment:Destroy() end
+    if not char then return end
+    local rootPart = char:WaitForChild("HumanoidRootPart")
+    playerAttachment = Instance.new("Attachment", rootPart)
+    currentBeam = Instance.new("Beam", rootPart)
+    currentBeam.Attachment0 = playerAttachment
+    currentBeam.Width0, currentBeam.Width1 = 0.3, 0.3
+    currentBeam.LightEmission = 1
+    currentBeam.FaceCamera = true
+    currentBeam.Enabled = false
+    currentBeam.Color = ColorSequence.new(COLOR_PALETTE[1])
+    colorIndex, transitionProgress = 1, 0
+end
+
+-- 🔍 Find intercept time using scan + refine
+local function findInterceptTime(ballPos, ballVel, playerPos, radius)
+	local function distAt(t)
+		local pos = ballPos + ballVel * t
+		return (playerPos - pos).Magnitude
+	end
+	local lastDist, foundT = distAt(0), nil
+	for t = 0, Config.MAX_SCAN_TIME, 0.02 do
+		local d = distAt(t)
+		if d <= radius then foundT = t; break end
+		lastDist = d
+	end
+	if not foundT then return nil end
+	local low, high = 0, foundT
+	for _=1,24 do
+		local mid = (low+high)/2
+		if distAt(mid) <= radius then high = mid else low = mid end
+	end
+	return high
+end
+
+-- 🔁 Main Loop
+RunService.RenderStepped:Connect(function(dt)
+	if not character or not hrp then return end
+	local playerPos = hrp.Position
+	local ball = Workspace:FindFirstChild("Ball")
+
+	-- Sphere visuals
+	if playerSphere then playerSphere.Transparency = State.Visuals and 0.7 or 1 end
+	if ballSphere then ballSphere.Transparency = (ball and State.Visuals) and 0.7 or 1 end
+	if State.Visuals and playerSphere and ballSphere then
+		local dynRad = math.clamp(Config.BASE_RADIUS + (ball and ball.Velocity.Magnitude*Config.SPEED_SCALE or 0), Config.MIN_RADIUS, Config.MAX_RADIUS)
+		playerSphere.Size = Vector3.one * dynRad*2
+		playerSphere.Position = playerPos
+		if ball then
+			ballSphere.Size = Vector3.one * (playerPos - ball.Position).Magnitude * 2
+			ballSphere.Position = playerPos
+		end
+	end
+
+	-- Beam visuals
+	if State.Beam and currentBeam and ball then
+		local ballAttach = ball:FindFirstChild("BallBeamAttach") or Instance.new("Attachment", ball)
+		ballAttach.Name = "BallBeamAttach"
+		currentBeam.Attachment1 = ballAttach
+		currentBeam.Enabled = true
+		transitionProgress += (dt / TRANSITION_SPEED)
+		if transitionProgress >= 1 then
+			transitionProgress, colorIndex = 0, colorIndex+1
+			if colorIndex > #COLOR_PALETTE then colorIndex = 1 end
+		end
+		local c1 = COLOR_PALETTE[colorIndex]
+		local c2 = COLOR_PALETTE[(colorIndex % #COLOR_PALETTE)+1]
+		currentBeam.Color = ColorSequence.new(c1:Lerp(c2, transitionProgress))
+	else
+		if currentBeam then currentBeam.Enabled = false end
+	end
+
+	-- Auto Block
+	if not (State.AutoBlock and canBlockGlobal and ball and ball:IsA("BasePart")) then return end
+	if tick()-lastGlobalBlock < Config.GLOBAL_COOLDOWN then return end
+	if blockedBalls[ball] and tick()-blockedBalls[ball] < Config.PER_BALL_COOLDOWN then return end
+
+	local dynRad = math.clamp(Config.BASE_RADIUS + (ball.Velocity.Magnitude*Config.SPEED_SCALE), Config.MIN_RADIUS, Config.MAX_RADIUS)
+	local tIntercept = findInterceptTime(ball.Position, ball.Velocity, playerPos, dynRad + ball.Size.X/2)
+	if not tIntercept then return end
+
+	local triggerAt = math.max(0, tIntercept - Config.SAFETY_OFFSET)
+	if triggerAt <= dt*1.5 then
+		canBlockGlobal, lastGlobalBlock = false, tick()
+		blockedBalls[ball] = tick()
+		task.spawn(playBlockAnimation)
+		startBlockEvent:FireServer(tick(), ball)
+		blockEvent:FireServer(ball)
+		task.delay(Config.GLOBAL_COOLDOWN, function() canBlockGlobal = true end)
+	end
+end)
+
+-- ♻️ Respawn Handler
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	hrp = newChar:WaitForChild("HumanoidRootPart")
+	canBlockGlobal, blockedBalls, isPlayingAnimation = true, setmetatable({}, {__mode="k"}), false
+	setupSpheres()
+	setupBeamSystem(newChar)
+end)
+
+-- 🖱️ GUI
+local function createControlGUI()
+	if CoreGui:FindFirstChild("DioDemoGUI") then CoreGui.DioDemoGUI:Destroy() end
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "DioDemoGUI"
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	gui.Parent = CoreGui
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0,220,0,170)
+	frame.Position = UDim2.new(0,20,0,20)
+	frame.BackgroundColor3 = Color3.fromRGB(30,30,35)
+	frame.BorderColor3 = Color3.fromRGB(70,70,80)
+	frame.BorderSizePixel = 2
+	frame.Active, frame.Draggable = true, true
+	frame.Parent = gui
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1,0,0,30)
+	title.BackgroundColor3 = Color3.fromRGB(45,45,50)
+	title.Text = "Dio Demo"
+	title.TextColor3 = Color3.new(1,1,1)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 16
+	title.Parent = frame
+	local function makeToggle(name,yPos,state,onChange)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1,-20,0,30)
+		btn.Position = UDim2.new(0,10,0,yPos)
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 14
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.Parent = frame
+		local function update(st)
+			btn.Text = name..": "..(st and "ON" or "OFF")
+			btn.BackgroundColor3 = st and Color3.fromRGB(40,120,70) or Color3.fromRGB(120,40,40)
+			onChange(st)
+		end
+		btn.MouseButton1Click:Connect(function() update(btn.BackgroundColor3 ~= Color3.fromRGB(40,120,70)) end)
+		update(state)
+	end
+	makeToggle("Auto Block",40,State.AutoBlock,function(v) State.AutoBlock=v end)
+	makeToggle("Visuals",80,State.Visuals,function(v) State.Visuals=v end)
+	makeToggle("Beam",120,State.Beam,function(v) State.Beam=v end)
+	UserInputService.InputBegan:Connect(function(inp,gp) if not gp and inp.KeyCode==Enum.KeyCode.B then gui.Enabled=not gui.Enabled end end)
+end
+
+-- 🚀 Init
+setupSpheres()
+setupBeamSystem(character)
+createControlGUI()
+print("✅ Dio Demo [Definitive Edition + Perfect Prediction] ACTIVE. Press 'B' to toggle GUI.")
