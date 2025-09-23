@@ -1,0 +1,715 @@
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService") -- Required for the shimmer effect
+
+-- ✅ Global selected card state
+local selectedCard = nil
+local deselectCurrentCardFunction = nil -- A function to deselect the active card
+
+-- ✅ Destroy old UI if re-run
+local existingUI = LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("LuxuryPetUI")
+if existingUI then
+    existingUI:Destroy()
+end
+
+-- ✅ Safe PlayerGui reference
+local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+if not playerGui then
+    playerGui = Instance.new("PlayerGui")
+    playerGui.Parent = LocalPlayer
+end
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LuxuryPetUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Panel
+local mainPanel = Instance.new("Frame")
+mainPanel.Name = "MovablePanel"
+mainPanel.Parent = screenGui
+mainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+mainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainPanel.Size = UDim2.new(0.55, 0, 0.8, 0)
+mainPanel.BackgroundTransparency = 0.25
+mainPanel.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+mainPanel.BorderSizePixel = 0
+
+-- Rounded corners
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0, 16)
+panelCorner.Parent = mainPanel
+
+-- Draggable Implementation
+local dragging = false
+local dragStart = nil
+local startPos = nil
+mainPanel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainPanel.Position
+    end
+end)
+mainPanel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        mainPanel.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- ✅ Divider Line
+local dividerLine = Instance.new("Frame")
+dividerLine.Name = "Divider"
+dividerLine.Parent = mainPanel
+dividerLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+dividerLine.BorderSizePixel = 0
+dividerLine.AnchorPoint = Vector2.new(0.5, 1)
+dividerLine.Position = UDim2.new(0.5, 0, 1, 0)
+dividerLine.Size = UDim2.new(0, 1, 1, -60)
+local taperedEffect = Instance.new("UIGradient")
+taperedEffect.Rotation = 90
+taperedEffect.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.1, 0),
+    NumberSequenceKeypoint.new(0.9, 0),
+    NumberSequenceKeypoint.new(1, 1)
+})
+taperedEffect.Parent = dividerLine
+
+-- ✅ CONTROL BAR — FLOATING TOP RIGHT (Integrated into main script)
+local controlBar = Instance.new("Frame")
+controlBar.Size = UDim2.new(0, 80, 0, 30)
+controlBar.Position = UDim2.new(1, -85, 0, 8)
+controlBar.BackgroundTransparency = 1
+controlBar.Parent = mainPanel
+controlBar.ZIndex = 10
+
+-- ➖ MINIMIZE BUTTON — DARK PURPLE, WHITE "-"
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 24, 0, 24)
+minimizeButton.Position = UDim2.new(1, -58, 0, 2)
+minimizeButton.AnchorPoint = Vector2.new(1, 0)
+minimizeButton.Text = "—"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 18
+minimizeButton.ZIndex = 11
+minimizeButton.AutoButtonColor = false -- ✅ REMOVES WHITE FLASH
+minimizeButton.Parent = controlBar
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 5)
+minCorner.Parent = minimizeButton
+
+-- ❌ CLOSE BUTTON — DARK PURPLE, RED "X" TEXTLABEL
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 24, 0, 24)
+closeButton.Position = UDim2.new(1, -26, 0, 2)
+closeButton.AnchorPoint = Vector2.new(1, 0)
+closeButton.Text = ""
+closeButton.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+closeButton.ZIndex = 11
+closeButton.AutoButtonColor = false -- ✅ REMOVES WHITE FLASH
+closeButton.Parent = controlBar
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.Parent = closeButton
+
+-- ✅ TRUE "X" USING TEXTLABEL — RED
+local closeIcon = Instance.new("TextLabel")
+closeIcon.Size = UDim2.new(1, 0, 1, 0)
+closeIcon.BackgroundTransparency = 1
+closeIcon.Text = "X"
+closeIcon.TextColor3 = Color3.fromRGB(255, 80, 80)
+closeIcon.Font = Enum.Font.GothamBold
+closeIcon.TextSize = 16
+closeIcon.TextXAlignment = Enum.TextXAlignment.Center
+closeIcon.TextYAlignment = Enum.TextYAlignment.Center
+closeIcon.ZIndex = 12
+closeIcon.Parent = closeButton
+
+-- ✅ HOVER EFFECT — SLIGHT EXPANSION + WHITE OUTLINE (for control buttons)
+local function addHoverEffect(button)
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.fromRGB(255, 255, 255)
+    outline.Thickness = 1
+    outline.Transparency = 1
+    outline.Parent = button
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 26, 0, 26)
+        }):Play()
+        TweenService:Create(outline, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = 0.3
+        }):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 24, 0, 24)
+        }):Play()
+        TweenService:Create(outline, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = 1
+        }):Play()
+    end)
+end
+addHoverEffect(closeButton)
+addHoverEffect(minimizeButton)
+
+-- ✅ CLICK ANIMATION — JUST A TINY EXPANSION (for control buttons)
+local function createClickAnimation(button)
+    button.MouseButton1Click:Connect(function()
+        local expandTween = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 26, 0, 26)
+        })
+        expandTween:Play()
+        expandTween.Completed:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 24, 0, 24)
+            }):Play()
+        end)
+    end)
+end
+createClickAnimation(closeButton)
+createClickAnimation(minimizeButton)
+
+-- ✅ FUNCTIONALITY
+closeButton.MouseButton1Click:Connect(function()
+    wait(0.05)
+    screenGui:Destroy()
+end)
+minimizeButton.MouseButton1Click:Connect(function()
+    wait(0.05)
+    mainPanel.Visible = false
+    print("GUI Minimized")
+end)
+
+-- Mutation Color Map
+local function getMutationColor(mutation)
+    local colorMap = {
+        Diamond = Color3.fromRGB(0, 220, 255),
+        Gold = Color3.fromRGB(255, 215, 0),
+        Mythic = Color3.fromRGB(255, 105, 180),
+        Epic = Color3.fromRGB(180, 0, 255),
+        Rare = Color3.fromRGB(0, 180, 255),
+        Common = Color3.fromRGB(150, 150, 150),
+    }
+    return colorMap[mutation] or Color3.fromRGB(200, 200, 200)
+end
+
+-- ✨ LUXURY SEARCH BAR
+local function createLuxurySearchBar(parent)
+    local searchBar = Instance.new("Frame")
+    searchBar.Size = UDim2.new(0.45, 0, 0, 36)
+    searchBar.Position = UDim2.new(0, 15, 0, 15)
+    searchBar.BackgroundTransparency = 0
+    searchBar.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+    searchBar.BorderSizePixel = 0
+    searchBar.ZIndex = 1
+    searchBar.Parent = parent
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(1, 0)
+    barCorner.Parent = searchBar
+    local barGradient = Instance.new("UIGradient")
+    barGradient.Rotation = 90
+    barGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 20, 35)),
+        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(20, 15, 25)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(18, 10, 30)),
+        ColorSequenceKeypoint.new(0.65, Color3.fromRGB(20, 15, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 20, 35))
+    })
+    barGradient.Parent = searchBar
+    local iconCircle = Instance.new("Frame")
+    iconCircle.Size = UDim2.new(0, 36, 0, 36)
+    iconCircle.Position = UDim2.new(0, 0, 0, 0)
+    iconCircle.BackgroundTransparency = 0
+    iconCircle.BackgroundColor3 = Color3.fromRGB(18, 10, 30)
+    iconCircle.BorderSizePixel = 0
+    iconCircle.ClipsDescendants = true
+    iconCircle.Parent = searchBar
+    local circleOutline = Instance.new("UIStroke")
+    circleOutline.Color = Color3.fromRGB(180, 180, 180)
+    circleOutline.Thickness = 1
+    circleOutline.Transparency = 0.5
+    circleOutline.Parent = iconCircle
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(1, 0)
+    circleCorner.Parent = iconCircle
+    local iconLabel = Instance.new("TextLabel")
+    iconLabel.Size = UDim2.new(1, 0, 1, 0)
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.Text = "🔍"
+    iconLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    iconLabel.TextSize = 22
+    iconLabel.Font = Enum.Font.Gotham
+    iconLabel.TextXAlignment = Enum.TextXAlignment.Center
+    iconLabel.TextYAlignment = Enum.TextYAlignment.Center
+    iconLabel.Parent = iconCircle
+    local placeholder = Instance.new("TextLabel")
+    placeholder.Size = UDim2.new(0.8, 0, 1, 0)
+    placeholder.Position = UDim2.new(0, 44, 0, 0)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "filter by: name · money · etc."
+    placeholder.TextColor3 = Color3.fromRGB(180, 180, 180)
+    placeholder.TextSize = 14
+    placeholder.Font = Enum.Font.Gotham
+    placeholder.TextXAlignment = Enum.TextXAlignment.Left
+    placeholder.TextYAlignment = Enum.TextYAlignment.Center
+    placeholder.TextTransparency = 0.4
+    placeholder.Parent = searchBar
+    local textBox = Instance.new("TextBox")
+    textBox.Size = UDim2.new(0.8, 0, 1, 0)
+    textBox.Position = UDim2.new(0, 44, 0, 0)
+    textBox.BackgroundTransparency = 1
+    textBox.Text = ""
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.TextSize = 14
+    textBox.Font = Enum.Font.Gotham
+    textBox.ClearTextOnFocus = false
+    textBox.Parent = searchBar
+    local focusOutline = Instance.new("UIStroke")
+    focusOutline.Color = Color3.fromRGB(255, 255, 255)
+    focusOutline.Thickness = 1
+    focusOutline.Transparency = 1
+    focusOutline.Parent = searchBar
+    textBox.FocusLost:Connect(function(enterPressed)
+        if textBox.Text == "" then
+            placeholder.Visible = true
+        end
+        if enterPressed then
+            print("🔍 Searching for:", textBox.Text)
+            -- 👉 Add your search logic here
+        end
+    end)
+    textBox.Focused:Connect(function()
+        placeholder.Visible = false
+    end)
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local originalSize = searchBar.Size
+    local originalPosition = searchBar.Position
+    local originalCircleColor = circleOutline.Color
+    local originalCircleTransparency = circleOutline.Transparency
+    local function onHoverIn()
+        TweenService:Create(searchBar, tweenInfo, { Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 5, originalSize.Y.Scale, originalSize.Y.Offset), Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset - 2.5, originalPosition.Y.Scale, originalPosition.Y.Offset), ZIndex = 2 }):Play()
+        TweenService:Create(circleOutline, tweenInfo, { Color = Color3.fromRGB(220, 220, 220), Transparency = 0.2 }):Play()
+        TweenService:Create(iconLabel, tweenInfo, { TextColor3 = Color3.fromRGB(220, 220, 220) }):Play()
+    end
+    local function onHoverOut()
+        if not textBox:IsFocused() then
+            TweenService:Create(searchBar, tweenInfo, { Size = originalSize, Position = originalPosition, ZIndex = 1 }):Play()
+            TweenService:Create(circleOutline, tweenInfo, { Color = originalCircleColor, Transparency = originalCircleTransparency }):Play()
+            TweenService:Create(iconLabel, tweenInfo, { TextColor3 = Color3.fromRGB(180, 180, 180) }):Play()
+            TweenService:Create(focusOutline, tweenInfo, { Transparency = 1 }):Play()
+        end
+    end
+    local function onFocus()
+        TweenService:Create(searchBar, tweenInfo, { Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 8, originalSize.Y.Scale, originalSize.Y.Offset), Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset - 4, originalPosition.Y.Scale, originalPosition.Y.Offset), ZIndex = 3 }):Play()
+        TweenService:Create(focusOutline, tweenInfo, { Transparency = 0.3 }):Play()
+        TweenService:Create(circleOutline, tweenInfo, { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.3 }):Play()
+        TweenService:Create(iconLabel, tweenInfo, { TextColor3 = Color3.fromRGB(255, 255, 255) }):Play()
+    end
+    local function onBlur()
+        TweenService:Create(searchBar, tweenInfo, { Size = originalSize, Position = originalPosition, ZIndex = 1 }):Play()
+        TweenService:Create(focusOutline, tweenInfo, { Transparency = 1 }):Play()
+        TweenService:Create(circleOutline, tweenInfo, { Color = originalCircleColor, Transparency = originalCircleTransparency }):Play()
+        TweenService:Create(iconLabel, tweenInfo, { TextColor3 = Color3.fromRGB(180, 180, 180) }):Play()
+    end
+    searchBar.MouseEnter:Connect(onHoverIn)
+    searchBar.MouseLeave:Connect(onHoverOut)
+    textBox.Focused:Connect(onFocus)
+    textBox.FocusLost:Connect(onBlur)
+    return searchBar
+end
+
+-- ===================================================================
+-- START: YOUR SCRIPT, CONVERTED & MADE EVEN SMALLER
+-- ===================================================================
+local function createSecretRarityEffect(parentTextLabel)
+    local player = game.Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
+
+    local effectScreenGui = Instance.new("ScreenGui")
+    effectScreenGui.Name = "TextEffectGui_" .. tostring(tick()) -- Unique name
+    effectScreenGui.Parent = playerGui
+    effectScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global -- Allows it to draw over other things
+
+    -- ⭐ MODIFIED: Even smaller container
+    local containerWidth = 42
+    local containerHeight = 26
+    local textContainer = Instance.new("Frame")
+    textContainer.Parent = effectScreenGui
+    textContainer.Size = UDim2.fromOffset(containerWidth, containerHeight)
+    textContainer.BackgroundTransparency = 1
+    textContainer.ClipsDescendants = true
+
+    local baseText = Instance.new("TextLabel")
+    baseText.Parent = textContainer
+    baseText.Size = UDim2.fromScale(1, 1)
+    baseText.BackgroundTransparency = 1
+    baseText.Text = "secret"
+    baseText.TextColor3 = Color3.new(1, 1, 1)
+    baseText.TextSize = 14 -- ⭐ MODIFIED: Smaller text
+    baseText.Font = Enum.Font.GothamBold
+    baseText.TextXAlignment = Enum.TextXAlignment.Left
+    baseText.TextYAlignment = Enum.TextYAlignment.Top
+    baseText.ZIndex = 1
+
+    local baseStroke = Instance.new("UIStroke")
+    baseStroke.Parent = baseText
+    baseStroke.Color = Color3.new(0, 0, 0)
+    baseStroke.Thickness = 0.7 -- ⭐ MODIFIED: Thinner outline
+
+    local SCROLL_SPEED = 0.25
+    local TRAIN_LENGTH = 8
+    local OVERLAP_BUFFER = 0.4
+    local VISIBLE_HEIGHT = 1.0
+    local TOTAL_HEIGHT = VISIBLE_HEIGHT + OVERLAP_BUFFER * 2
+
+    local shineTemplate = Instance.new("UIGradient")
+    shineTemplate.Rotation = 90
+    shineTemplate.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.39, 1),
+        NumberSequenceKeypoint.new(0.4, 0),
+        NumberSequenceKeypoint.new(0.6, 0),
+        NumberSequenceKeypoint.new(0.61, 1),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+
+    local textLayers = {
+        { color = Color3.new(0, 0, 0), outline = Color3.new(1, 1, 1) },
+        { color = Color3.new(1, 1, 1), outline = Color3.new(0, 0, 0) }
+    }
+    local shines = {}
+    local spacing = TOTAL_HEIGHT / TRAIN_LENGTH
+    for i = 1, TRAIN_LENGTH do
+        local layerInfo = textLayers[(i - 1) % 2 + 1]
+        local overlay = baseText:Clone()
+        overlay.Parent = textContainer
+        overlay.TextColor3 = layerInfo.color
+        overlay.ZIndex = 10 + i
+        overlay:FindFirstChild("UIStroke").Color = layerInfo.outline
+        local shine = shineTemplate:Clone()
+        shine.Parent = overlay
+        shine.Enabled = true
+        local startOffset = -OVERLAP_BUFFER - (spacing * (i - 1))
+        shine.Offset = Vector2.new(0, startOffset)
+        table.insert(shines, {
+            shine = shine,
+            speed = SCROLL_SPEED,
+            overlap = OVERLAP_BUFFER,
+            totalHeight = TOTAL_HEIGHT
+        })
+    end
+
+    local heartbeat, renderConnection
+
+    heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
+        for _, data in ipairs(shines) do
+            local shine = data.shine
+            local current = shine.Offset.Y
+            local newY = current + data.speed * deltaTime
+            if newY >= data.overlap then
+                newY = newY - data.totalHeight
+            end
+            shine.Offset = Vector2.new(0, newY)
+        end
+    end)
+
+    local function updatePosition()
+        if not parentTextLabel or not parentTextLabel.Parent then
+            if heartbeat then heartbeat:Disconnect() end
+            if renderConnection then renderConnection:Disconnect() end
+            effectScreenGui:Destroy()
+            return
+        end
+        local absPos = parentTextLabel.AbsolutePosition
+        local absSize = parentTextLabel.AbsoluteSize
+        -- ⭐ MODIFIED: Adjusted positioning for new size
+        textContainer.Position = UDim2.fromOffset(absPos.X + absSize.X + 5, absPos.Y + 2)
+    end
+    renderConnection = RunService.RenderStepped:Connect(updatePosition)
+
+    parentTextLabel.AncestryChanged:Connect(function(_, newParent)
+        if not newParent then
+            if heartbeat then heartbeat:Disconnect() end
+            if renderConnection then renderConnection:Disconnect() end
+            effectScreenGui:Destroy()
+        end
+    end)
+
+    updatePosition()
+end
+-- ===================================================================
+-- END: YOUR SCRIPT CONVERSION
+-- ===================================================================
+
+-- ✅ PET CARD CREATOR — Integrates the new "secret" effect
+local function createPetCard(parent, petName, mutation, statText)
+    -- Define the three visual states for the card
+    local restingSize = UDim2.new(1, 0, 0, 70)
+    local hoverSize = UDim2.new(1.03, 0, 0, 72.1)
+    local expandedSize = UDim2.new(1.03, 0, 0, 78)
+    local restingPosition = UDim2.new(0, 0, 0, 0)
+    local hoverPosition = UDim2.new(-0.015, 0, 0, 0)
+
+    -- Main card frame
+    local card = Instance.new("Frame")
+    card.Size = restingSize
+    card.Position = restingPosition
+    card.BackgroundTransparency = 0.3
+    card.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+    card.BorderSizePixel = 0
+    card.Parent = parent
+    card.ClipsDescendants = false
+    card.ZIndex = 1
+
+    local cardOutline = Instance.new("UIStroke")
+    cardOutline.Color = Color3.fromRGB(255, 255, 255)
+    cardOutline.Thickness = 0
+    cardOutline.Parent = card
+
+    local cardCorner = Instance.new("UICorner")
+    cardCorner.CornerRadius = UDim.new(0, 10)
+    cardCorner.Parent = card
+
+    local shadow = Instance.new("ImageLabel")
+    shadow.BackgroundTransparency = 1
+    shadow.Size = UDim2.new(1, 4, 1, 4)
+    shadow.Position = UDim2.new(-0.02, 0, -0.02, 0)
+    shadow.Image = "rbxassetid://7203091178"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.85
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10, 10, 38, 38)
+    shadow.ZIndex = 0
+    shadow.Parent = card
+
+    local cardPadding = Instance.new("UIPadding")
+    cardPadding.PaddingLeft = UDim.new(0, 16)
+    cardPadding.PaddingRight = UDim.new(0, 16)
+    cardPadding.PaddingTop = UDim.new(0, 12)
+    cardPadding.PaddingBottom = UDim.new(0, 12)
+    cardPadding.Parent = card
+
+    local textContainer = Instance.new("Frame")
+    textContainer.Size = UDim2.new(1, 0, 1, 0)
+    textContainer.BackgroundTransparency = 1
+    textContainer.Parent = card
+
+    local nameAndRarityContainer = Instance.new("Frame")
+    nameAndRarityContainer.Size = UDim2.new(1, 0, 0, 22)
+    nameAndRarityContainer.BackgroundTransparency = 1
+    nameAndRarityContainer.Parent = textContainer
+
+    -- Pet Name Label
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Parent = nameAndRarityContainer
+    nameLabel.Size = UDim2.new(0.7, 0, 1, 0) -- ⭐ MODIFIED: Giving more space back to the name
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = petName
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextSize = 17
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+    -- CREATE THE "SECRET" RARITY EFFECT NEXT TO THE NAME FOR EVERY PET
+    spawn(function()
+        wait(0.1) -- wait for label to render
+        createSecretRarityEffect(nameLabel)
+    end)
+
+    -- Mutation Label
+    local mutationLabel = Instance.new("TextLabel")
+    mutationLabel.Parent = textContainer
+    mutationLabel.Size = UDim2.new(1, 0, 0, 14)
+    mutationLabel.Position = UDim2.new(0, 0, 0, 24)
+    mutationLabel.BackgroundTransparency = 1
+    mutationLabel.Text = mutation
+    mutationLabel.TextColor3 = getMutationColor(mutation)
+    mutationLabel.TextSize = 12
+    mutationLabel.Font = Enum.Font.Gotham
+    mutationLabel.TextXAlignment = Enum.TextXAlignment.Left
+    mutationLabel.TextTransparency = 0.6
+
+    local statLabel = Instance.new("TextLabel")
+    statLabel.Parent = textContainer
+    statLabel.Size = UDim2.new(1, 0, 0, 14)
+    statLabel.Position = UDim2.new(0, 0, 0, 40)
+    statLabel.BackgroundTransparency = 1
+    statLabel.Text = statText
+    statLabel.TextColor3 = Color3.fromRGB(0, 230, 100)
+    statLabel.TextSize = 12
+    statLabel.Font = Enum.Font.Gotham
+    statLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statLabel.TextTransparency = 0.5
+
+    local joinButton = Instance.new("TextButton")
+    joinButton.Size = UDim2.new(0, 75, 0, 24)
+    joinButton.AnchorPoint = Vector2.new(1, 1)
+    joinButton.Position = UDim2.new(1, -4, 1, 0)
+    joinButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    joinButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    joinButton.Text = "JOIN"
+    joinButton.TextSize = 14
+    joinButton.Font = Enum.Font.GothamBold
+    joinButton.ZIndex = 6
+    joinButton.Visible = false
+    joinButton.BackgroundTransparency = 1
+    joinButton.TextTransparency = 1
+    joinButton.AutoButtonColor = false
+    joinButton.Parent = card
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = joinButton
+
+    local joinOutline = Instance.new("UIStroke")
+    joinOutline.Color = Color3.fromRGB(255, 255, 255)
+    joinOutline.Thickness = 1
+    joinOutline.Transparency = 1
+    joinOutline.Parent = joinButton
+
+    joinButton.MouseEnter:Connect(function()
+        if joinButton.Visible then
+            TweenService:Create(joinButton, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 77, 0, 24.8) }):Play()
+            TweenService:Create(joinOutline, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = 0.3 }):Play()
+        end
+    end)
+
+    joinButton.MouseLeave:Connect(function()
+        if joinButton.Visible then
+            TweenService:Create(joinButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 75, 0, 24) }):Play()
+            TweenService:Create(joinOutline, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = 1 }):Play()
+        end
+    end)
+
+    joinButton.MouseButton1Click:Connect(function()
+        if joinButton.Visible then
+            local expandTween = TweenService:Create(joinButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 77, 0, 24.8) })
+            expandTween:Play()
+            expandTween.Completed:Connect(function()
+                TweenService:Create(joinButton, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 75, 0, 24) }):Play()
+            end)
+        end
+        print("Joining server for:", petName)
+    end)
+
+    local inputCatcher = Instance.new("TextButton")
+    inputCatcher.Name = "InputCatcher"
+    inputCatcher.Size = UDim2.new(1, 0, 1, 0)
+    inputCatcher.BackgroundTransparency = 1
+    inputCatcher.Text = ""
+    inputCatcher.ZIndex = 5
+    inputCatcher.Parent = card
+
+    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    local function enterHover()
+        TweenService:Create(card, tweenInfo, { Size = hoverSize, Position = hoverPosition, ZIndex = 2 }):Play()
+        TweenService:Create(cardOutline, tweenInfo, { Thickness = 1.5 }):Play()
+        TweenService:Create(shadow, tweenInfo, { Position = UDim2.new(-0.02, 0, -0.03, 0), ImageTransparency = 0.8 }):Play()
+        TweenService:Create(mutationLabel, tweenInfo, { TextTransparency = 0.2 }):Play()
+        TweenService:Create(statLabel, tweenInfo, { TextTransparency = 0.1 }):Play()
+    end
+
+    local function enterSelectedState()
+        TweenService:Create(card, tweenInfo, { Size = expandedSize, Position = hoverPosition, ZIndex = 3 }):Play()
+        TweenService:Create(cardOutline, tweenInfo, { Thickness = 1.5 }):Play()
+        TweenService:Create(shadow, tweenInfo, { Position = UDim2.new(-0.02, 0, -0.03, 0), ImageTransparency = 0.8 }):Play()
+        TweenService:Create(mutationLabel, tweenInfo, { TextTransparency = 0.2 }):Play()
+        TweenService:Create(statLabel, tweenInfo, { TextTransparency = 0.1 }):Play()
+        joinButton.Visible = true
+        TweenService:Create(joinButton, tweenInfo, { BackgroundTransparency = 0, TextTransparency = 0 }):Play()
+    end
+
+    local function leaveState()
+        TweenService:Create(card, tweenInfo, { Size = restingSize, Position = restingPosition, ZIndex = 1 }):Play()
+        TweenService:Create(cardOutline, tweenInfo, { Thickness = 0 }):Play()
+        TweenService:Create(shadow, tweenInfo, { Position = UDim2.new(-0.02, 0, -0.02, 0), ImageTransparency = 0.85 }):Play()
+        TweenService:Create(mutationLabel, tweenInfo, { TextTransparency = 0.6 }):Play()
+        TweenService:Create(statLabel, tweenInfo, { TextTransparency = 0.5 }):Play()
+        local fadeOutTween = TweenService:Create(joinButton, tweenInfo, { BackgroundTransparency = 1, TextTransparency = 1 })
+        fadeOutTween:Play()
+        fadeOutTween.Completed:Connect(function() joinButton.Visible = false end)
+    end
+
+    inputCatcher.MouseEnter:Connect(function() if selectedCard ~= card then enterHover() end pcall(function() UserInputService.MouseIcon = "rbxasset://textures/MousePointingHand.png" end) end)
+    inputCatcher.MouseLeave:Connect(function() if selectedCard ~= card then leaveState() end pcall(function() UserInputService.MouseIcon = nil end) end)
+    inputCatcher.MouseButton1Click:Connect(function()
+        local cardWasAlreadySelected = (selectedCard == card)
+        if deselectCurrentCardFunction then deselectCurrentCardFunction() deselectCurrentCardFunction = nil selectedCard = nil end
+        if not cardWasAlreadySelected then enterSelectedState() selectedCard = card deselectCurrentCardFunction = leaveState end
+    end)
+    return card
+end
+
+-- Scrolling Area Function
+local function createScrollingArea(parent, xPos)
+    local frame = Instance.new("ScrollingFrame")
+    frame.Size = UDim2.new(0.47, 0, 1, 0)
+    frame.Position = UDim2.new(xPos, xPos == 0 and 5 or 0, 0, 0)
+    frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
+    frame.ScrollBarThickness = 4
+    frame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 85)
+    frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    frame.Parent = parent
+    frame.ClipsDescendants = false
+
+    local scrollBarCorner = Instance.new("UICorner")
+    scrollBarCorner.CornerRadius = UDim.new(0, 2)
+    scrollBarCorner.Parent = frame
+
+    local scrollPadding = Instance.new("UIPadding")
+    scrollPadding.PaddingLeft = UDim.new(0, 12)
+    scrollPadding.PaddingRight = UDim.new(0, 24)
+    scrollPadding.PaddingTop = UDim.new(0, 60)
+    scrollPadding.PaddingBottom = UDim.new(0, 20)
+    scrollPadding.Parent = frame
+
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = frame
+
+    return frame, layout
+end
+
+local leftList, leftLayout = createScrollingArea(mainPanel, 0)
+local rightList, rightLayout = createScrollingArea(mainPanel, 0.53)
+
+-- Add Demo Cards
+createPetCard(leftList, "Tralalolo Tralala", "Diamond", "1.3M/s")
+createPetCard(leftList, "Shadow Pouncer", "Epic", "850K/s")
+createPetCard(leftList, "Tiny Chomper", "Common", "90K/s")
+createPetCard(rightList, "Cosmic Mew", "Mythic", "2.1M/s")
+createPetCard(rightList, "Blaze Runner", "Diamond", "1.7M/s")
+createPetCard(rightList, "Fluffy Titan", "Gold", "1.1M/s")
+
+-- ✅ ADD LUXURY SEARCH BAR TO MAIN PANEL
+createLuxurySearchBar(mainPanel)
+
+-- ✅ Executor-Safe Canvas Update
+spawn(function()
+    wait(0.1)
+    leftList.CanvasSize = UDim2.new(0, 0, 0, leftLayout.AbsoluteContentSize.Y + 40)
+    rightList.CanvasSize = UDim2.new(0, 0, 0, rightLayout.AbsoluteContentSize.Y + 40)
+end)
