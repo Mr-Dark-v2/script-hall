@@ -878,7 +878,7 @@ local function createMistUI(container)
 		button.Text = newStateText
 		button:SetAttribute("CurrentTextColor", newTextColor)
 		TweenService:Create(button, TextColorTweenInfo, { TextColor3 = newTextColor }):Play()
-		showNotification("Command sent!", 2)
+		showNotification("Command sent! Target toggled.", 2)
 	end)
 
 	GuiElements.espButton.MouseButton1Click:Connect(function()
@@ -892,7 +892,7 @@ local function createMistUI(container)
 		button.Text = newStateText
 		button:SetAttribute("CurrentTextColor", newTextColor)
 		TweenService:Create(button, TextColorTweenInfo, { TextColor3 = newTextColor }):Play()
-		showNotification("Command sent!", 2)
+		showNotification("Command sent! ESP toggled.", 2)
 	end)
 
 	GuiElements.fovChangerButton.MouseButton1Click:Connect(function()
@@ -912,7 +912,7 @@ local function createMistUI(container)
 		else
 			setSliderValue(GuiElements.camFovSliderContainer, gameDefaultFOV)
 		end
-		showNotification("Command sent!", 2)
+		showNotification("Command sent! FOV Changer toggled.", 2)
 	end)
 
 	GuiElements.resetFovButton.MouseButton1Click:Connect(function()
@@ -931,7 +931,7 @@ local function createMistUI(container)
 				TweenService:Create(button, TextColorTweenInfo, {TextColor3 = originalTextColor}):Play()
 			end
 		end)
-		showNotification("Command sent!", 2)
+		showNotification("Command sent! FOV reset.", 2)
 	end)
 
 	-- Initialize UI states
@@ -1128,8 +1128,8 @@ end
 local function styleTabs() TweenService:Create(TabCurrentButton, Theme.Animations.Hover, {BackgroundColor3 = currentTab == "Current" and Theme.Colors.TabActive or Theme.Colors.TabInactive, TextColor3 = currentTab == "Current" and Theme.Colors.Text or Theme.Colors.TextSubtle}):Play(); TweenService:Create(TabGlobalButton, Theme.Animations.Hover, {BackgroundColor3 = currentTab == "Global" and Theme.Colors.TabActive or Theme.Colors.TabInactive, TextColor3 = currentTab == "Global" and Theme.Colors.Text or Theme.Colors.TextSubtle}):Play() end
 TabCurrentButton.MouseEnter:Connect(function() if currentTab ~= "Current" then TweenService:Create(TabCurrentButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TabHover}):Play() end end); TabCurrentButton.MouseLeave:Connect(function() if currentTab ~= "Current" then TweenService:Create(TabCurrentButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TabInactive}):Play() end end)
 TabGlobalButton.MouseEnter:Connect(function() if currentTab ~= "Global" then TweenService:Create(TabGlobalButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TabHover}):Play() end end); TabGlobalButton.MouseLeave:Connect(function() if currentTab ~= "Global" then TweenService:Create(TabGlobalButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TabInactive}):Play() end end)
-TabCurrentButton.MouseButton1Click:Connect(function() if currentTab == "Current" or isSwitchingTabs then return end; isSwitchingTabs = true; currentTab = "Current"; styleTabs(); local tweenOut = TweenService:Create(PlayerListFrame_Global, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 233, 0, 29)}); local tweenIn = TweenService:Create(PlayerListFrame_Current, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 0, 0, 29)}); tweenOut.Completed:Connect(function() PlayerListFrame_Global.Visible = false; isSwitchingTabs = false; filterPlayerLists() end); PlayerListFrame_Current.Visible = true; tweenOut:Play(); tweenIn:Play() end)
-TabGlobalButton.MouseButton1Click:Connect(function() if currentTab == "Global" or isSwitchingTabs then return end; isSwitchingTabs = true; currentTab = "Global"; styleTabs(); local tweenOut = TweenService:Create(PlayerListFrame_Current, Theme.Animations.TabSwitch, {Position = UDim2.new(0, -233, 0, 29)}); local tweenIn = TweenService:Create(PlayerListFrame_Global, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 0, 0, 29)}); tweenOut.Completed:Connect(function() PlayerListFrame_Current.Visible = false; isSwitchingTabs = false; filterPlayerLists() end); PlayerListFrame_Global.Visible = true; tweenOut:Play(); tweenIn:Play() end)
+TabCurrentButton.MouseButton1Click:Connect(function() if currentTab == "Current" or isSwitchingTabs then return end; isSwitchingTabs = true; currentTab = "Current"; styleTabs(); local tweenOut = TweenService:Create(PlayerListFrame_Global, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 233, 0, 29)}); local tweenIn = TweenService:Create(PlayerListFrame_Current, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 0, 0, 29}); tweenOut.Completed:Connect(function() PlayerListFrame_Global.Visible = false; isSwitchingTabs = false; filterPlayerLists() end); PlayerListFrame_Current.Visible = true; tweenOut:Play(); tweenIn:Play() end)
+TabGlobalButton.MouseButton1Click:Connect(function() if currentTab == "Global" or isSwitchingTabs then return end; isSwitchingTabs = true; currentTab = "Global"; styleTabs(); local tweenOut = TweenService:Create(PlayerListFrame_Current, Theme.Animations.TabSwitch, {Position = UDim2.new(0, -233, 0, 29)}); local tweenIn = TweenService:Create(PlayerListFrame_Global, Theme.Animations.TabSwitch, {Position = UDim2.new(0, 0, 0, 29}); tweenOut.Completed:Connect(function() PlayerListFrame_Current.Visible = false; isSwitchingTabs = false; filterPlayerLists() end); PlayerListFrame_Global.Visible = true; tweenOut:Play(); tweenIn:Play() end)
 CloseButton.MouseEnter:Connect(function() TweenService:Create(CloseButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.CloseButtonHover}):Play() end); CloseButton.MouseLeave:Connect(function() TweenService:Create(CloseButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TopBar}):Play() end); CloseButton.MouseButton1Click:Connect(function() AdminGui:Destroy() end)
 MinimizeButton.MouseEnter:Connect(function() TweenService:Create(MinimizeButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.ButtonHover}):Play() end); MinimizeButton.MouseLeave:Connect(function() TweenService:Create(MinimizeButton, Theme.Animations.Hover, {BackgroundColor3 = Theme.Colors.TopBar}):Play() end); MinimizeButton.MouseButton1Click:Connect(function() isMinimized = not isMinimized; local targetSize = isMinimized and UDim2.new(0, 460, 0, 35) or UDim2.new(0, 460, 0, 420); local frameVisibility = not isMinimized; MinimizeButton.Text = isMinimized and "❐" or "_"; TabFrame.Visible, CommandFrame.Visible, PlayerListContainer.Visible = frameVisibility, frameVisibility, frameVisibility; TweenService:Create(MainFrame, Theme.Animations.Out, {Size = targetSize}):Play() end)
 JoinServerButton.MouseEnter:Connect(function() TweenService:Create(JoinServerButton, Theme.Animations.Hover, {BackgroundColor3 = Color3.fromRGB(230, 230, 230)}):Play() end); JoinServerButton.MouseLeave:Connect(function() TweenService:Create(JoinServerButton, Theme.Animations.Hover, {BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play() end)
