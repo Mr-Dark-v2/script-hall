@@ -1,0 +1,373 @@
+-- The Mist - Advanced Silent Module (v3.2 Backend)
+-- GUI has been completely removed. All functions are controlled remotely.
+
+--==============================================================================
+--|| SERVICES & CONFIGURATION
+--==============================================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+local Debris = game:GetService("Debris")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+local gameDefaultFOV = Camera.FieldOfView
+
+-- [!] NETWORKING CONFIGURATION
+local SERVER_READ_URL  = "https://8775b734-9c08-4b7f-932a-e8df8538b275-00-1xt67y1hms2uu.kirk.replit.dev/read"
+local SERVER_SEND_URL  = "https://8775b734-9c08-4b7f-932a-e8df8538b275-00-1xt67y1hms2uu.kirk.replit.dev/send"
+local HEARTBEAT_INTERVAL = 3
+local POLL_INTERVAL = 0.3
+local lastCount = 0
+
+--==============================================================================
+--|| REMOTE-CONTROLLED SETTINGS & STATE
+--==============================================================================
+local MistSettings = {
+    isTargetingEnabled = true,
+    isEspEnabled = false,
+    isFovChangerEnabled = false,
+    isStealthMode = true, -- Start in stealth by default to keep visuals off
+    targetingFOV = 35,
+    currentCameraFOV = 115,
+    currentDelayMode = "Blatant",
+    shootDelayMilliseconds = 0,
+    excludedPlayers = {} -- Stores player objects, key = player, value = true
+}
+
+-- Core State Variables
+local lastShotTime = 0
+local currentTool = nil
+local activatedConnection = nil
+local currentEffectiveCooldown = 0
+local fovCircle = nil
+
+local Storage = Instance.new("Folder", CoreGui); Storage.Name = "TheMist_Storage_v3"
+pcall(function() for _, v in ipairs(CoreGui:GetChildren()) do if v:IsA("Folder") and v.Name:match("Storage") and v ~= Storage then v:Destroy() end end end)
+
+local BulletRenderer_upvr = nil
+pcall(function()
+	local modulesFolder = ReplicatedStorage:FindFirstChild("Modules")
+	if modulesFolder and modulesFolder:FindFirstChild("BulletRenderer") then
+		BulletRenderer_upvr = require(modulesFolder.BulletRenderer)
+	end
+end)
+
+--==============================================================================
+--|| CORE LOGIC (ADAPTED FROM GUI SCRIPT)
+--==============================================================================
+function calculateEffectiveCooldown(toolInstance)
+	if not toolInstance or not toolInstance:IsA("Tool") then return 0.5 end
+	local gameCooldown = toolInstance:GetAttribute("Cooldown")
+	return (type(gameCooldown) == "number" and gameCooldown > 0) and gameCooldown or 0.5
+end
+
+function createDrawingCircle()
+	if not pcall(function() local _ = Drawing.new end) then return nil end
+	local circle = Drawing.new("Circle"); circle.Thickness = 2; circle.Color = Color3.fromRGB(128,0,128); circle.Transparency = 0.5; circle.Filled = false; circle.NumSides = 64; circle.Visible = false;
+	return circle
+end
+
+function updateFOVCircle()
+	if not fovCircle then return end
+	local shouldBeVisible = MistSettings.isTargetingEnabled and not MistSettings.isStealthMode
+	fovCircle.Visible = shouldBeVisible
+	if not shouldBeVisible then return end
+	local screenSize = Camera.ViewportSize
+	if not screenSize or screenSize.X == 0 or screenSize.Y == 0 then fovCircle.Visible = false; return end
+	fovCircle.Position = screenSize / 2
+	local radius = (screenSize.Y / 2) * math.tan(math.rad(MistSettings.targetingFOV / 2)) / math.tan(math.rad(Camera.FieldOfView / 2))
+	fovCircle.Radius = math.max(0, radius)
+end
+
+function updateExcludedLabel(targetPlayer)
+	if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("Head") then return end
+	local head = targetPlayer.Character.Head
+	local billboard = head:FindFirstChild("ExcludeLabel_MistV3")
+	if MistSettings.excludedPlayers[targetPlayer] then
+		if not billboard then
+			billboard = Instance.new("BillboardGui", head); billboard.Name = "ExcludeLabel_MistV3"; billboard.Size = UDim2.new(0, 85, 0, 22); billboard.StudsOffset = Vector3.new(0, 2.4, 0); billboard.AlwaysOnTop = true; billboard.LightInfluence = 0;
+			local text = Instance.new("TextLabel", billboard); text.Size = UDim2.fromScale(1,1); text.BackgroundColor3 = Color3.fromRGB(50,10,50); text.BackgroundTransparency = 0.2; text.Font=Enum.Font.GothamSemibold; text.Text="EXCLUDED"; text.TextColor3=Color3.fromRGB(255,0,0); text.TextSize=11;
+		end
+		billboard.Enabled = not MistSettings.isStealthMode
+	elseif billboard then
+		billboard:Destroy()
+	end
+end
+
+function updateAllExcludedLabelsVisibility()
+	local desiredVisibility = not MistSettings.isStealthMode
+	for plr, _ in pairs(MistSettings.excludedPlayers) do
+		if plr and plr.Character and plr.Character:FindFirstChild("Head") then
+			local billboard = plr.Character.Head:FindFirstChild("ExcludeLabel_MistV3")
+			if billboard then billboard.Enabled = desiredVisibility end
+		end
+	end
+end
+
+function applyHighlight(plr)
+	if plr == player then return end
+	if Storage:FindFirstChild(plr.Name) then return end
+	local highlight = Instance.new("Highlight", Storage); highlight.Name = plr.Name; highlight.FillColor = plr.Team and plr.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255); highlight.FillTransparency = 0.5; highlight.OutlineColor = Color3.fromRGB(255, 255, 255); highlight.OutlineTransparency = 0; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; highlight.Enabled = MistSettings.isEspEnabled;
+	if plr.Character then highlight.Adornee = plr.Character end
+	plr.CharacterAdded:Connect(function(char) if highlight and highlight.Parent then highlight.Adornee = char end end)
+	plr.CharacterRemoving:Connect(function() if highlight and highlight.Parent then highlight.Adornee = nil end end)
+end
+
+function removeHighlight(plr)
+	if plr and Storage:FindFirstChild(plr.Name) then Storage[plr.Name]:Destroy() end
+end
+
+function toggleESP(enabled)
+	MistSettings.isEspEnabled = enabled
+	if MistSettings.isStealthMode then MistSettings.isEspEnabled = false end -- Stealth mode overrides ESP
+	
+	if MistSettings.isEspEnabled then
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= player then
+				local h = Storage:FindFirstChild(p.Name)
+				if h then h.Enabled = true else applyHighlight(p) end
+			end
+		end
+	else
+		for _, h in pairs(Storage:GetChildren()) do
+			if h:IsA("Highlight") then h.Enabled = false end
+		end
+	end
+end
+
+function toggleStealthMode()
+    MistSettings.isStealthMode = not MistSettings.isStealthMode
+    if MistSettings.isStealthMode then
+        -- When stealth is ON, disable all visuals
+        if MistSettings.isEspEnabled then toggleESP(false) end
+        if MistSettings.isFovChangerEnabled then
+             MistSettings.isFovChangerEnabled = false
+             Camera.FieldOfView = gameDefaultFOV
+        end
+    end
+    updateFOVCircle()
+    updateAllExcludedLabelsVisibility()
+end
+
+function getShootEvent()
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	return remotes and remotes:FindFirstChild("ShootGun")
+end
+
+function findTool()
+	if character then for _, c in pairs(character:GetChildren()) do if c:IsA("Tool") then return c end end end
+	if backpack then for _, c in pairs(backpack:GetChildren()) do if c:IsA("Tool") then return c end end end
+	return nil
+end
+
+function isVisible(targetCharacter)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+	local startPos = character.HumanoidRootPart.Position
+	local parts = {"HumanoidRootPart", "Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot"}
+	local params = RaycastParams.new(); params.FilterDescendantsInstances = {character, Storage}; params.FilterType = Enum.RaycastFilterType.Blacklist; params.IgnoreWater = true
+	for _, pName in pairs(parts) do
+		local part = targetCharacter:FindFirstChild(pName)
+		if part and part:IsA("BasePart") then
+			local dir = part.Position - startPos
+			if dir.Magnitude > 0.1 then
+				local res = workspace:Raycast(startPos, dir.Unit * dir.Magnitude, params)
+				if res and res.Instance:IsDescendantOf(targetCharacter) then return part end
+			end
+		end
+	end
+	return nil
+end
+
+function isWithinFOV(targetPart)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+	local camCF, targetPos, camPos = Camera.CFrame, targetPart.Position, Camera.CFrame.Position
+	if (targetPos - camPos).Magnitude < 0.1 then return true end
+	local dot = (targetPos - camPos).Unit:Dot(camCF.LookVector)
+	return math.deg(math.acos(math.clamp(dot, -1, 1))) <= (MistSettings.targetingFOV / 2)
+end
+
+function setupToolListener(toolInstance)
+	if activatedConnection then activatedConnection:Disconnect(); activatedConnection = nil end
+	if currentTool and currentTool ~= toolInstance and not currentTool.Enabled then pcall(function() currentTool.Enabled = true end) end
+	currentTool = toolInstance
+	if toolInstance and toolInstance:IsA("Tool") then
+		local cdActive = currentEffectiveCooldown > 0 and (tick() - lastShotTime < currentEffectiveCooldown)
+		pcall(function() toolInstance.Enabled = not cdActive end)
+		activatedConnection = toolInstance.Activated:Connect(function()
+			lastShotTime = tick(); currentEffectiveCooldown = calculateEffectiveCooldown(toolInstance)
+			if toolInstance then pcall(function() toolInstance.Enabled = false end) end
+		end)
+	else
+		currentEffectiveCooldown = 0
+	end
+end
+
+function findClosestEnemy()
+	local maxDist, closestEnemy, closestPart, closestDist = 400, nil, nil, 400
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if not rootPart or not player.Team then return nil, nil end
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") then
+			local char, root, hum, pTeam = p.Character, p.Character.HumanoidRootPart, p.Character:FindFirstChildOfClass("Humanoid"), p.Team
+			local isOpponent = pTeam and player.Team.Name ~= pTeam.Name
+			if hum.Health > 0 and not MistSettings.excludedPlayers[p] and isOpponent then
+				local dist = (rootPart.Position - root.Position).Magnitude
+				if dist < closestDist then
+					local visPart = isVisible(char)
+					if visPart and isWithinFOV(root) then closestDist, closestEnemy, closestPart = dist, p, visPart end
+				end
+			end
+		end
+	end
+	return closestEnemy, closestPart
+end
+
+function shoot()
+	if not MistSettings.isTargetingEnabled or not character or not character.Parent or not character:FindFirstChild("HumanoidRootPart") then return end
+	local tool = currentTool; if not tool or tool.Parent ~= character then tool = findTool(); if tool and tool.Parent == character then setupToolListener(tool) else return end end
+	local shootEvent = getShootEvent(); if not shootEvent then return end
+	local effCD, now = calculateEffectiveCooldown(tool), tick()
+	if now - lastShotTime < effCD then return end
+	local target, part = findClosestEnemy(); if not part or not target or not target.Character then return end
+	lastShotTime, currentEffectiveCooldown = now, effCD
+	local startPos; local muzzle = tool:FindFirstChild("Muzzle", true); if muzzle and muzzle:IsA("Attachment") then startPos = muzzle.WorldPosition else local h = tool:FindFirstChild("Handle"); startPos = (h and h.Position) or character.HumanoidRootPart.Position end
+	
+	task.spawn(function()
+		if MistSettings.shootDelayMilliseconds > 0 then task.wait(MistSettings.shootDelayMilliseconds / 1000) end
+		if not tool or tool.Parent ~= character or not target or not target.Character then return end
+		local hum = target.Character:FindFirstChildOfClass("Humanoid"); if not hum or hum.Health <= 0 or MistSettings.excludedPlayers[target] then return end
+		
+		local args = {}; local endpoint
+		if MistSettings.currentDelayMode == "Blatant" then
+			endpoint = part.Position
+			args = {startPos, endpoint, part, endpoint}
+		else -- Normal
+			endpoint = part.Position
+			args = {startPos, endpoint, nil, nil}
+		end
+		
+		local s, _ = pcall(function() shootEvent:FireServer(unpack(args)) end)
+		if s then
+			if tool:FindFirstChild("Fire") then pcall(tool.Fire.Play, tool.Fire) end
+			if BulletRenderer_upvr and muzzle and endpoint then pcall(BulletRenderer_upvr, startPos, endpoint, tool:GetAttribute("BulletType")) end
+			pcall(tool.Activate, tool); task.wait(); if tool and tool.Parent == character then pcall(function() tool.Enabled = false end) end
+		end
+	end)
+end
+
+--==============================================================================
+--|| NETWORKING & COMMAND HANDLING
+--==============================================================================
+local gameName = "Unknown Game"
+task.spawn(function() local s, r = pcall(MarketplaceService.GetProductInfo, MarketplaceService, game.PlaceId); if s and r and r.Name then gameName = r.Name end end)
+local function safeJsonDecode(s) local ok, res = pcall(HttpService.JSONDecode, HttpService, s); if ok then return res end; return nil end
+
+local MistCommands = {
+    ["mist_toggle_target"] = function() MistSettings.isTargetingEnabled = not MistSettings.isTargetingEnabled; updateFOVCircle() end,
+    ["mist_toggle_esp"] = function() toggleESP(not MistSettings.isEspEnabled) end,
+    ["mist_toggle_stealth"] = function() toggleStealthMode() end,
+    ["mist_toggle_fov_changer"] = function()
+        MistSettings.isFovChangerEnabled = not MistSettings.isFovChangerEnabled
+        if MistSettings.isStealthMode then MistSettings.isFovChangerEnabled = false end
+        Camera.FieldOfView = MistSettings.isFovChangerEnabled and MistSettings.currentCameraFOV or gameDefaultFOV
+		updateFOVCircle()
+    end,
+    ["mist_set_target_fov"] = function(args) local fov = tonumber(args and args[1]); if fov and fov > 0 and fov < 180 then MistSettings.targetingFOV = fov; updateFOVCircle() end end,
+    ["mist_set_camera_fov"] = function(args) local fov = tonumber(args and args[1]); if fov and fov > 30 and fov < 120 then MistSettings.currentCameraFOV = fov; if MistSettings.isFovChangerEnabled then Camera.FieldOfView = fov; updateFOVCircle() end end end,
+    ["mist_switch_delay_mode"] = function() MistSettings.currentDelayMode = MistSettings.currentDelayMode == "Blatant" and "Normal" or "Blatant" end,
+    ["mist_toggle_exclude"] = function(args)
+        local targetId = tonumber(args and args[1])
+        if not targetId then return end
+        local targetPlayer = Players:GetPlayerByUserId(targetId)
+        if targetPlayer then
+            MistSettings.excludedPlayers[targetPlayer] = not MistSettings.excludedPlayers[targetPlayer]
+            updateExcludedLabel(targetPlayer)
+        end
+    end
+}
+
+-- Heartbeat Sender
+task.spawn(function()
+	while true do
+		local payload = {userId = player.UserId, name = player.Name, displayName = player.DisplayName, jobId = game.JobId, ts = os.time(), gameName = gameName, module = "Mist_v3"}
+		local s, json = pcall(HttpService.JSONEncode, HttpService, payload)
+		if s then pcall(function() game:HttpGet(SERVER_SEND_URL .. "?text=" .. HttpService:UrlEncode(json)) end) end
+		task.wait(HEARTBEAT_INTERVAL)
+	end
+end)
+
+-- Command Listener
+pcall(function() local _, resp = pcall(game.HttpGet, game, SERVER_READ_URL); if resp then local dec = safeJsonDecode(resp); if type(dec) == "table" then lastCount = #dec end end end)
+task.spawn(function()
+	while true do
+		local s, resp = pcall(game.HttpGet, game, SERVER_READ_URL)
+		if s and resp then
+			local data = safeJsonDecode(resp)
+			if type(data) == "table" and #data > lastCount then
+				for i = lastCount + 1, #data do
+					local cmdData = safeJsonDecode(data[i] or "")
+					if type(cmdData) == "table" and cmdData.cmd and cmdData.target then
+						local cmdFunc = MistCommands[cmdData.cmd:lower()]
+						if cmdFunc and (cmdData.target == player.UserId or cmdData.target == "all") then pcall(cmdFunc, cmdData.args) end
+					end
+				end; lastCount = #data
+			end
+		end; task.wait(POLL_INTERVAL)
+	end
+end)
+
+--==============================================================================
+--|| INITIALIZATION & MAIN LOOP
+--==============================================================================
+pcall(function()
+	fovCircle = createDrawingCircle()
+	setupToolListener(findTool())
+
+	local function setupPlayerListeners(p)
+		if p == player then return end
+		task.spawn(function()
+			task.wait(0.2); if not p or not p.Parent then return end
+			if MistSettings.excludedPlayers[p] then updateExcludedLabel(p) end
+			if MistSettings.isEspEnabled then applyHighlight(p) end
+			p.CharacterAdded:Connect(function(char) task.wait(0.2); if p and p.Parent then if MistSettings.excludedPlayers[p] then updateExcludedLabel(p) end; if MistSettings.isEspEnabled then applyHighlight(p) end end end)
+			p.CharacterRemoving:Connect(function(char) if char and char:FindFirstChild("Head") and char.Head:FindFirstChild("ExcludeLabel_MistV3") then char.Head.ExcludeLabel_MistV3:Destroy() end; removeHighlight(p) end)
+		end)
+	end
+	
+	Players.PlayerAdded:Connect(setupPlayerListeners)
+	Players.PlayerRemoving:Connect(function(p) MistSettings.excludedPlayers[p] = nil; removeHighlight(p) end)
+	for _, p in pairs(Players:GetPlayers()) do setupPlayerListeners(p) end
+
+	player.CharacterAdded:Connect(function(newChar)
+		character = newChar; task.wait(0.2); backpack = player:WaitForChild("Backpack", 5); setupToolListener(findTool())
+		newChar.ChildAdded:Connect(function(c) if c:IsA("Tool") then setupToolListener(c) end end)
+		newChar.ChildRemoved:Connect(function(c) if c == currentTool then setupToolListener(nil) end end)
+	end)
+	if character then
+		character.ChildAdded:Connect(function(c) if c:IsA("Tool") then setupToolListener(c) end end)
+		character.ChildRemoved:Connect(function(c) if c == currentTool then setupToolListener(nil) end end)
+	end
+	
+	RunService.RenderStepped:Connect(function()
+		if not character or not character.Parent then character = player.Character; if not character then return end end
+		local equipped = character and character:FindFirstChildOfClass("Tool"); if equipped ~= currentTool then setupToolListener(equipped) end
+		if currentTool and not currentTool.Enabled and currentEffectiveCooldown > 0 and tick() - lastShotTime >= currentEffectiveCooldown then pcall(function() currentTool.Enabled = true end); currentEffectiveCooldown = 0 end
+		pcall(updateFOVCircle)
+		pcall(shoot)
+	end)
+end)
+
+-- [!] CORRECTED LINE
+script.Destroying:Connect(function()
+	if fovCircle then fovCircle:Destroy() end
+	if Storage then Storage:Destroy() end
+	Camera.FieldOfView = gameDefaultFOV
+end)
