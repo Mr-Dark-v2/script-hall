@@ -1,0 +1,353 @@
+-- ==============================
+-- FIXED PET SCANNER + TEST GUI (v2)
+-- ==============================
+
+-- Services
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Config
+local PLACE_ID = game.PlaceId
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1403129769737851043/I_oToNPBUrJozS_cL6Dt2BbvVvqo8jZBTlpsI9MrMPBhc-XNSjEsFh9cZlUIdFsZMCFA"
+local NODEJS_SERVER_URL = "https://c0b380c0-e581-4a2d-b662-3b6458672e31-00-2nqz0i9difaqd.spock.replit.dev"
+
+-- State: Auto hop OFF by default
+local autoHopEnabled = false
+
+-- Helper: Wait for pet data
+local function waitForPetData(podium)
+    local maxWait = 0.8
+    local startTime = tick()
+    while tick() - startTime < maxWait do
+        local oh = podium:FindFirstChild("AnimalOverhead", true)
+        if not oh then return false end
+        local ml = oh:FindFirstChild("Generation")
+        if ml and (ml.Text:match("%$[%d,.]+[KMB]?") or ml.Text:match("[%d,.]+[KMB]?/s")) then
+            return true
+        end
+        task.wait(0.05)
+    end
+    return false
+end
+
+-- Helper: Clean money format
+local function cleanMoneyFormat(str)
+    local n = str:match("([%d,.]+)") or "???"
+    local s = str:match("([KMB])")
+    if s then return n .. s else return n end
+end
+
+-- Helper: Get best server (for hopping)
+local function getBestServer()
+    local cId = game.JobId
+    local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100"
+    local s, r = pcall(function() return HttpService:GetAsync(url) end)
+    if not s then return nil end
+    local d = HttpService:JSONDecode(r)
+    local bS = nil
+    local mP = math.huge
+    for _, srv in ipairs(d.data or {}) do
+        if srv.id ~= cId and srv.playing < srv.maxPlayers and srv.playing < mP then
+            mP = srv.playing
+            bS = {id = srv.id}
+        end
+    end
+    return bS
+end
+
+-- Helper: Safe hop
+local function safeHop()
+    if not autoHopEnabled then return end
+    local bS = getBestServer()
+    if bS then
+        pcall(function() TeleportService:TeleportToPlaceInstance(PLACE_ID, bS.id, LocalPlayer) end)
+    else
+        pcall(function() TeleportService:Teleport(PLACE_ID, LocalPlayer) end)
+    end
+end
+
+-- Helper: Get owner from plot
+local function getOwnerFromPlot(pM)
+    local s = pM:FindFirstChild("PlotSign", true)
+    if s then
+        local l = s:FindFirstChild("TextLabel", true)
+        if l and l.Text:match("'s Base") then
+            return l.Text:match("(.+)'s Base")
+        end
+    end
+    return "Unknown Owner"
+end
+
+-- ==============================
+-- SEND DATA FUNCTIONS
+-- ==============================
+
+local function sendToDiscord(owner, allPets)
+    local highTierPets = {}
+    for _, pet in ipairs(allPets) do
+        pet.money = cleanMoneyFormat(pet.money)
+        pet.moneyValue = tonumber(string.match(pet.money, "[%d.]+")) or 0
+        if string.find(pet.money, "K") then pet.moneyValue = pet.moneyValue * 1e3
+        elseif string.find(pet.money, "M") then pet.moneyValue = pet.moneyValue * 1e6
+        elseif string.find(pet.money, "B") then pet.moneyValue = pet.moneyValue * 1e9 end
+        if pet.rarity == "OG" or pet.rarity == "Secret" or pet.rarity == "Brainrot God" then
+            table.insert(highTierPets, pet)
+        end
+    end
+
+    if #highTierPets == 0 then return end
+
+    local requestFunc = nil
+    if http_request then requestFunc = http_request
+    elseif request then requestFunc = request
+    elseif syn and syn.request then requestFunc = syn.request end
+    if not requestFunc then return end
+
+    table.sort(allPets, function(a, b) return a.moneyValue > b.moneyValue end)
+    local bestPet = allPets[1]
+    local lists = { OG = {}, Secret = {}, ["Brainrot God"] = {} }
+    for _, p in ipairs(highTierPets) do table.insert(lists[p.rarity], p) end
+    for _, l in pairs(lists) do table.sort(l, function(a, b) return a.moneyValue > b.moneyValue end) end
+    local order = {
+        {h="**--- 👑 OG 👑 ---**",l=lists.OG},
+        {h="**--- 💎 SECRET PETS 💎 ---**",l=lists.Secret},
+        {h="**--- 🔥 BRAINROT GODS 🔥 ---**",l=lists["Brainrot God"]}
+    }
+    local desc = {}
+    for _, ri in ipairs(order) do
+        if #ri.l > 0 then
+            table.insert(desc, ri.h)
+            for _, p in ipairs(ri.l) do
+                table.insert(desc, string.format("🧠 **%s** | $%s/s | 🧬 %s", p.name, p.money, p.mutation))
+            end
+            table.insert(desc, "")
+        end
+    end
+    local smartPick = bestPet and string.format("👑 **%s**\n> **$%s/s** | **%s**", bestPet.name, bestPet.money, bestPet.mutation) or "No pets found."
+    local pcScript = string.format('game:GetService("TeleportService"):TeleportToPlaceInstance(%d, "%s")', PLACE_ID, game.JobId)
+    local mobileLink = "https://fern.wtf/joiner?placeId="..PLACE_ID.."&gameInstanceId="..game.JobId
+
+    local discordPayload = {
+        embeds = {{
+            title = string.format("📦 TARGETS FOUND IN BASE: %s (%d total)", owner, #highTierPets),
+            description = table.concat(desc, "\n"),
+            color = 0xFF00FF,
+            fields = {
+                {name="🎯 Smart Pick / Hot Take 🎯",value=smartPick,inline=false},
+                {name="💻 PC Executor Script",value="```lua\n"..pcScript.."\n```",inline=false},
+                {name="🚀 Instant Mobile Join",value="[**Click Here to Teleport**]("..mobileLink..")",inline=false}
+            }
+        }}
+    }
+
+    pcall(function()
+        requestFunc({
+            Url = DISCORD_WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(discordPayload)
+        })
+    end)
+    print("✅ Sent to Discord")
+end
+
+local function sendToServer(owner, allPets)
+    local serverPayload = {
+        owner = owner,
+        placeId = PLACE_ID,
+        jobId = game.JobId,
+        joinScript = string.format('game:GetService("TeleportService"):TeleportToPlaceInstance(%d, "%s")', PLACE_ID, game.JobId),
+        timestamp = os.time(),
+        pets = {}
+    }
+    for _, pet in ipairs(allPets) do
+        table.insert(serverPayload.pets, {
+            name = pet.name,
+            money = pet.money,
+            mutation = pet.mutation,
+            rarity = pet.rarity
+        })
+    end
+
+    pcall(function()
+        local encoded = HttpService:UrlEncode(HttpService:JSONEncode(serverPayload))
+        game:HttpGet(NODEJS_SERVER_URL.."/send?text="..encoded, true)
+    end)
+    print("✅ Sent to Node.js Server")
+end
+
+-- ==============================
+-- SCAN CURRENT BASE — WITH CORRECT MUTATION
+-- ==============================
+
+local function scanCurrentBase()
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return {} end
+
+    local grouped = {}
+    for _, pM in ipairs(plots:GetChildren()) do
+        if pM:IsA("Model") then
+            local pods = pM:FindFirstChild("AnimalPodiums")
+            if pods then
+                local owner = getOwnerFromPlot(pM)
+                grouped[owner] = grouped[owner] or {}
+                for _, pod in ipairs(pods:GetChildren()) do
+                    if waitForPetData(pod) then
+                        local oh = pod:FindFirstChild("AnimalOverhead", true)
+                        if oh then
+                            local dName = oh:FindFirstChild("DisplayName")
+                            local rarity = oh:FindFirstChild("Rarity")
+                            if dName and rarity then
+                                local mpsLabel = oh:FindFirstChild("Generation")
+                                local mps = mpsLabel and cleanMoneyFormat(mpsLabel.Text) or "???"
+
+                                -- ✅ FIXED: Use visibility to detect "Normal"
+                                local mutation = "Normal"
+                                local mutLabel = oh:FindFirstChild("Mutation")
+                                if mutLabel and mutLabel:IsA("TextLabel") and mutLabel.Visible then
+                                    local text = mutLabel.Text
+                                    if text == "Diamond" or text == "Galaxy" or text == "Candy" or text == "Rainbow" or text == "Mythic" or text == "Epic" or text == "Rare" or text == "Common" then
+                                        mutation = text
+                                    end
+                                end
+
+                                table.insert(grouped[owner], {
+                                    name = dName.Text,
+                                    money = mps,
+                                    mutation = mutation,  -- ✅ Now correct!
+                                    rarity = rarity.Text
+                                })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return grouped
+end
+
+-- ==============================
+-- GUI: TEST CONTROLS
+-- ==============================
+
+local function createTestGUI()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then
+        playerGui = Instance.new("PlayerGui")
+        playerGui.Parent = LocalPlayer
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ScannerTestGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 280, 0, 160)
+    frame.Position = UDim2.new(0, 20, 0, 20)
+    frame.BackgroundTransparency = 0
+    frame.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+    frame.Parent = gui
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundTransparency = 1
+    title.Text = "🔍 SCANNER TEST PANEL"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.Parent = frame
+
+    -- Toggle: Auto Hop
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(1, -20, 0, 30)
+    toggleFrame.Position = UDim2.new(0, 10, 0, 40)
+    toggleFrame.BackgroundTransparency = 1
+    toggleFrame.Parent = frame
+
+    local toggleLabel = Instance.new("TextLabel")
+    toggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    toggleLabel.BackgroundTransparency = 1
+    toggleLabel.Text = "Auto Hop:"
+    toggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleLabel.Font = Enum.Font.Gotham
+    toggleLabel.TextSize = 14
+    toggleLabel.Parent = toggleFrame
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(0.3, 0, 1, 0)
+    toggleButton.Position = UDim2.new(0.7, 0, 0, 0)
+    toggleButton.Text = autoHopEnabled and "ON" or "OFF"
+    toggleButton.TextColor3 = autoHopEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(30, 25, 35)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.Parent = toggleFrame
+    toggleButton.MouseButton1Click:Connect(function()
+        autoHopEnabled = not autoHopEnabled
+        toggleButton.Text = autoHopEnabled and "ON" or "OFF"
+        toggleButton.TextColor3 = autoHopEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end)
+
+    -- Button: Send to Discord
+    local discordBtn = Instance.new("TextButton")
+    discordBtn.Size = UDim2.new(1, -20, 0, 30)
+    discordBtn.Position = UDim2.new(0, 10, 0, 80)
+    discordBtn.Text = "📤 Send to Discord"
+    discordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    discordBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 80)
+    discordBtn.Font = Enum.Font.GothamBold
+    discordBtn.Parent = frame
+    discordBtn.MouseButton1Click:Connect(function()
+        local grouped = scanCurrentBase()
+        for owner, pets in pairs(grouped) do
+            if #pets > 0 then
+                sendToDiscord(owner, pets)
+            end
+        end
+    end)
+
+    -- Button: Send to Server
+    local serverBtn = Instance.new("TextButton")
+    serverBtn.Size = UDim2.new(1, -20, 0, 30)
+    serverBtn.Position = UDim2.new(0, 10, 0, 120)
+    serverBtn.Text = "📤 Send to Server"
+    serverBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    serverBtn.BackgroundColor3 = Color3.fromRGB(40, 60, 80)
+    serverBtn.Font = Enum.Font.GothamBold
+    serverBtn.Parent = frame
+    serverBtn.MouseButton1Click:Connect(function()
+        local grouped = scanCurrentBase()
+        for owner, pets in pairs(grouped) do
+            if #pets > 0 then
+                sendToServer(owner, pets)
+            end
+        end
+    end)
+
+    print("✅ Scanner Test GUI Loaded — Auto Hop: OFF")
+end
+
+-- Start GUI
+createTestGUI()
+
+-- Optional: Auto-scan loop (respects toggle)
+spawn(function()
+    repeat wait() until Workspace:FindFirstChild("Plots")
+    while true do
+        wait(4)  -- ✅ Every 4 seconds
+        if autoHopEnabled then
+            local grouped = scanCurrentBase()
+            for owner, pets in pairs(grouped) do
+                if #pets > 0 then
+                    sendToServer(owner, pets)
+                    sendToDiscord(owner, pets)
+                end
+            end
+            safeHop()
+        end
+    end
+end)
