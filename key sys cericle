@@ -1,0 +1,1916 @@
+--[[
+    THE MIST HUB - Advanced Circular Key System
+    Premium Features: Radial Layout, Holographic Input, Orbital Elements
+    Enhanced with Dynamic Constellation Integration & Portal Success Animation
+]]
+
+-- ================================================================= --
+-- PRE-FLIGHT CHECK
+-- ================================================================= --
+
+if JunkieProtected == nil then
+    local player = game:GetService("Players").LocalPlayer
+    if not player or not player:IsA("Player") then return end
+    local failsafeGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+    failsafeGui.Name = "MistHub_FAILSAFE"
+    failsafeGui.ResetOnSpawn = false
+    local background = Instance.new("Frame", failsafeGui)
+    background.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+    background.BorderColor3 = Color3.fromRGB(255, 60, 60)
+    background.BorderSizePixel = 2
+    background.Position = UDim2.fromScale(0.5, 0.5)
+    background.AnchorPoint = Vector2.new(0.5, 0.5)
+    background.Size = UDim2.new(0, 500, 0, 300)
+    Instance.new("UICorner", background).CornerRadius = UDim.new(0, 12)
+    local title = Instance.new("TextLabel", background)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.Text = "SDK INITIALIZATION FAILED"
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+    local message = Instance.new("TextLabel", background)
+    message.Size = UDim2.new(0.9, 0, 0.7, 0)
+    message.Position = UDim2.fromScale(0.05, 0.25)
+    message.BackgroundTransparency = 1
+    message.TextColor3 = Color3.fromRGB(240, 240, 240)
+    message.Font = Enum.Font.Gotham
+    message.TextSize = 18
+    message.TextWrapped = true
+    message.TextXAlignment = Enum.TextXAlignment.Left
+    message.Text = "The protection library was not found.\n\nPlease ensure you are using the official script version."
+    return
+end
+
+-- ================================================================= --
+-- SERVICES & CONFIG
+-- ================================================================= --
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+JunkieProtected.API_KEY = "f2896b56-b3d0-4428-8660-50264327d813"
+JunkieProtected.PROVIDER = "key_system"
+JunkieProtected.SERVICE_ID = "key system"
+
+local KEY_FILENAME = "MistHubKey.txt"
+local DISCORD_LINK = "https://discord.gg/themisthub"
+
+-- ================================================================= --
+-- UTILITY: RESPONSIVE SCALING
+-- ================================================================= --
+
+local function getScale()
+    local vpSize = camera.ViewportSize
+    local baseWidth = 1920
+    local baseHeight = 1080
+    return math.min(vpSize.X / baseWidth, vpSize.Y / baseHeight)
+end
+
+local function scaledSize(width, height)
+    local scale = getScale()
+    return UDim2.new(0, width * scale, 0, height * scale)
+end
+
+-- ================================================================= --
+-- RUN MAIN SCRIPT
+-- ================================================================= --
+
+local function RunMainScript()
+    local MainScriptGui = Instance.new("ScreenGui")
+    MainScriptGui.Name = "TheMistHubMain"
+    MainScriptGui.Parent = playerGui
+    
+    -- Create a simple notification that the main script is running
+    local notification = Instance.new("Frame")
+    notification.Size = UDim2.new(0, 400, 0, 100)
+    notification.Position = UDim2.new(0.5, -200, 0.5, -50)
+    notification.AnchorPoint = Vector2.new(0, 0)
+    notification.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    notification.BorderSizePixel = 0
+    notification.Parent = MainScriptGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = notification
+    
+    local title = Instance.new("TextLabel", notification)
+    title.Size = UDim2.new(1, 0, 0, 40)
+    title.Position = UDim2.new(0, 0, 0, 10)
+    title.Text = "THE MIST HUB"
+    title.TextSize = 24
+    title.Font = Enum.Font.GothamBold
+    title.TextColor3 = Color3.fromRGB(0, 217, 255)
+    title.BackgroundTransparency = 1
+    title.Parent = notification
+    
+    local message = Instance.new("TextLabel", notification)
+    message.Size = UDim2.new(1, -20, 0, 40)
+    message.Position = UDim2.new(0, 10, 0, 50)
+    message.Text = "Main script loaded successfully!"
+    message.TextSize = 16
+    message.Font = Enum.Font.Gotham
+    message.TextColor3 = Color3.fromRGB(255, 255, 255)
+    message.BackgroundTransparency = 1
+    message.TextWrapped = true
+    message.Parent = notification
+    
+    -- Auto-close notification after 5 seconds
+    game:GetService("Debris"):AddItem(notification, 5)
+end
+
+-- ================================================================= --
+-- CHECK SAVED KEY
+-- ================================================================= --
+
+if isfile and isfile(KEY_FILENAME) then
+    local savedKey = readfile(KEY_FILENAME)
+    if savedKey and savedKey ~= "" then
+        local result = JunkieProtected.ValidateKey({ Key = savedKey })
+        if result == "valid" then
+            RunMainScript()
+            return
+        end
+    end
+end
+
+local keylessCheck = JunkieProtected.IsKeylessMode()
+if keylessCheck and keylessCheck.keyless_mode then
+    RunMainScript()
+    return
+end
+
+-- ================================================================= --
+-- CREATE GUI (FULLSCREEN)
+-- ================================================================= --
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TheMistHubUltra"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
+gui.Parent = playerGui
+
+-- Resource cleanup management
+local connections = {}
+local tweens = {}
+local animationLoops = {}
+
+local function cleanup()
+    -- Disconnect all connections
+    for _, conn in pairs(connections) do
+        if conn then
+            conn:Disconnect()
+        end
+    end
+    connections = {}
+    
+    -- Cancel all tweens
+    for _, tween in pairs(tweens) do
+        if tween then
+            tween:Cancel()
+        end
+    end
+    tweens = {}
+    
+    -- Stop all animation loops
+    for _, loop in pairs(animationLoops) do
+        loop = false
+    end
+    animationLoops = {}
+    
+    -- Destroy GUI
+    if gui then
+        gui:Destroy()
+        gui = nil
+    end
+end
+
+-- ================================================================= --
+-- PREMIUM DARK CONSTELLATION AURORA BACKGROUND
+-- ================================================================= --
+
+local bgFrame = Instance.new("Frame")
+bgFrame.Name = "Background"
+bgFrame.Size = UDim2.new(1, 0, 1, 0)
+bgFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 15)
+bgFrame.BorderSizePixel = 0
+bgFrame.ZIndex = 1
+bgFrame.BackgroundTransparency = 0
+bgFrame.Parent = gui
+
+-- Create multiple gradient layers for dark aurora effect
+local auroraLayers = {}
+for i = 1, 3 do
+    local aurora = Instance.new("Frame")
+    aurora.Name = "Aurora" .. i
+    aurora.Size = UDim2.new(1.5, 0, 1.5, 0)
+    aurora.Position = UDim2.fromScale(-0.25, -0.25)
+    aurora.BackgroundTransparency = 0.85 - (i * 0.1)
+    aurora.BorderSizePixel = 0
+    aurora.ZIndex = 1 + i
+    aurora.Parent = bgFrame
+    
+    local gradient = Instance.new("UIGradient")
+    -- Dark grayscale colors instead of colorful ones
+    local colors = {
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 60, 60))
+        },
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 30, 30)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 50))
+        },
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 40))
+        }
+    }
+    gradient.Color = colors[i]
+    gradient.Rotation = 45 + (i * 30)
+    gradient.Parent = aurora
+    
+    table.insert(auroraLayers, {frame = aurora, gradient = gradient, baseRotation = gradient.Rotation})
+end
+
+-- Animate aurora layers with proper cleanup
+animationLoops.aurora = true
+task.spawn(function()
+    while animationLoops.aurora and bgFrame and bgFrame.Parent do
+        for i, layer in ipairs(auroraLayers) do
+            if layer.frame and layer.frame.Parent then
+                layer.gradient.Rotation = layer.baseRotation + math.sin(tick() * (0.2 + i * 0.1)) * 30
+                layer.frame.Position = UDim2.new(
+                    -0.25 + math.sin(tick() * (0.1 + i * 0.05)) * 0.05,
+                    0,
+                    -0.25 + math.cos(tick() * (0.1 + i * 0.05)) * 0.05,
+                    0
+                )
+            end
+        end
+        task.wait(0.03)
+    end
+end)
+
+-- Constellation nodes system with enhanced interaction
+local constellationContainer = Instance.new("Frame")
+constellationContainer.Name = "Constellation"
+constellationContainer.Size = UDim2.new(1, 0, 1, 0)
+constellationContainer.BackgroundTransparency = 1
+constellationContainer.ZIndex = 2
+constellationContainer.Parent = bgFrame
+
+local nodes = {}
+local connections = {}
+local mousePos = Vector2.new(0, 0)
+local centerWindowPos = Vector2.new(0, 0)
+
+-- Create constellation nodes
+for i = 1, 30 do
+    local node = Instance.new("Frame")
+    node.Size = scaledSize(4, 4)
+    node.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    node.AnchorPoint = Vector2.new(0.5, 0.5)
+    node.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    node.BackgroundTransparency = 0.1
+    node.BorderSizePixel = 0
+    node.ZIndex = 3
+    node.Parent = constellationContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = node
+    
+    local glow = Instance.new("Frame")
+    glow.Size = scaledSize(12, 12)
+    glow.Position = UDim2.fromScale(0.5, 0.5)
+    glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    glow.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    glow.BackgroundTransparency = 0.5
+    glow.BorderSizePixel = 0
+    glow.ZIndex = 2
+    glow.Parent = node
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(1, 0)
+    glowCorner.Parent = glow
+    
+    table.insert(nodes, {
+        frame = node,
+        glow = glow,
+        vx = (math.random() - 0.5) * 0.0012,
+        vy = (math.random() - 0.5) * 0.0012,
+        baseHue = 0.55 + math.random() * 0.1,
+        energyLine = nil
+    })
+end
+
+-- Create connection lines
+local function createConnection(node1, node2)
+    local connection = Instance.new("Frame")
+    connection.Name = "Connection"
+    connection.BorderSizePixel = 0
+    connection.BackgroundTransparency = 0.4
+    connection.ZIndex = 2
+    connection.Parent = constellationContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 1)
+    corner.Parent = connection
+    
+    return {
+        frame = connection,
+        node1 = node1,
+        node2 = node2
+    }
+end
+
+-- Update constellation system with enhanced interaction
+animationLoops.constellation = true
+connections.constellation = RunService.Heartbeat:Connect(function()
+    if not animationLoops.constellation then return end
+    
+    -- Update node positions
+    for _, node in ipairs(nodes) do
+        if node.frame and node.frame.Parent then
+            local pos = node.frame.Position
+            local newX = pos.X.Scale + node.vx
+            local newY = pos.Y.Scale + node.vy
+            
+            if newX < 0 or newX > 1 then node.vx = -node.vx end
+            if newY < 0 or newY > 1 then node.vy = -node.vy end
+            
+            node.frame.Position = UDim2.new(
+                math.clamp(newX, 0, 1), 0,
+                math.clamp(newY, 0, 1), 0
+            )
+            
+            -- Update glow based on mouse proximity and center window
+            local nodeScreenPos = Vector2.new(
+                node.frame.AbsolutePosition.X + node.frame.AbsoluteSize.X / 2,
+                node.frame.AbsolutePosition.Y + node.frame.AbsoluteSize.Y / 2
+            )
+            local mouseDistance = (nodeScreenPos - mousePos).Magnitude
+            local centerDistance = (nodeScreenPos - centerWindowPos).Magnitude
+            local maxDistance = 200
+            local mouseIntensity = math.max(0, 1 - mouseDistance / maxDistance)
+            local centerIntensity = math.max(0, 1 - centerDistance / 300)
+            local totalIntensity = math.max(mouseIntensity, centerIntensity)
+            
+            node.glow.BackgroundTransparency = 0.5 - totalIntensity * 0.3
+            node.glow.Size = scaledSize(12 + totalIntensity * 15, 12 + totalIntensity * 15)
+            
+            -- Pulse effect
+            local pulse = math.sin(tick() * 2 + node.baseHue * 10) * 0.2 + 0.8
+            node.frame.BackgroundTransparency = 0.1 - totalIntensity * 0.1 + (1 - pulse) * 0.1
+            
+            -- Create energy line to center when close
+            if centerIntensity > 0.3 then
+                if not node.energyLine then
+                    node.energyLine = Instance.new("Frame")
+                    node.energyLine.BorderSizePixel = 0
+                    node.energyLine.BackgroundTransparency = 0.7
+                    node.energyLine.ZIndex = 2
+                    node.energyLine.Parent = constellationContainer
+                    
+                    local lineCorner = Instance.new("UICorner")
+                    lineCorner.CornerRadius = UDim.new(0, 1)
+                    lineCorner.Parent = node.energyLine
+                end
+                
+                -- Update energy line
+                local angle = math.atan2(centerWindowPos.Y - nodeScreenPos.Y, centerWindowPos.X - nodeScreenPos.X)
+                local length = centerDistance
+                node.energyLine.Position = UDim2.fromOffset(nodeScreenPos.X, nodeScreenPos.Y)
+                node.energyLine.Size = UDim2.new(0, length, 0, 1)
+                node.energyLine.Rotation = math.deg(angle)
+                node.energyLine.BackgroundTransparency = 0.7 - centerIntensity * 0.4
+            elseif node.energyLine then
+                node.energyLine:Destroy()
+                node.energyLine = nil
+            end
+        end
+    end
+    
+    -- Update connections
+    for _, conn in ipairs(connections) do
+        if conn.frame then
+            conn.frame:Destroy()
+        end
+    end
+    connections = {}
+    
+    -- Create new connections for nearby nodes
+    for i, node1 in ipairs(nodes) do
+        for j, node2 in ipairs(nodes) do
+            if i < j then
+                local pos1 = node1.frame.Position
+                local pos2 = node2.frame.Position
+                local distance = math.sqrt(
+                    (pos1.X.Scale - pos2.X.Scale) ^ 2 + 
+                    (pos1.Y.Scale - pos2.Y.Scale) ^ 2
+                )
+                
+                if distance < 0.25 then
+                    local connection = createConnection(node1, node2)
+                    
+                    local centerX = (pos1.X.Scale + pos2.X.Scale) / 2
+                    local centerY = (pos1.Y.Scale + pos2.Y.Scale) / 2
+                    local angle = math.atan2(pos2.Y.Scale - pos1.Y.Scale, pos2.X.Scale - pos1.X.Scale)
+                    local length = distance * math.min(camera.ViewportSize.X, camera.ViewportSize.Y)
+                    
+                    connection.frame.Position = UDim2.new(centerX, 0, centerY, 0)
+                    connection.frame.Size = UDim2.new(0, length, 0, 1)
+                    connection.frame.Rotation = math.deg(angle)
+                    connection.frame.BackgroundTransparency = 0.4 + distance * 1.5
+                    
+                    table.insert(connections, connection)
+                end
+            end
+        end
+    end
+end)
+
+-- Track mouse position for interaction
+connections.mouse = UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        mousePos = Vector2.new(input.Position.X, input.Position.Y)
+    end
+end)
+
+-- ================================================================= --
+-- ENHANCED PARTICLE SYSTEM WITH ORBITAL MOTION
+-- ================================================================= --
+
+local particleContainer = Instance.new("Frame")
+particleContainer.Name = "Particles"
+particleContainer.Size = UDim2.new(1, 0, 1, 0)
+particleContainer.BackgroundTransparency = 1
+particleContainer.ZIndex = 3
+particleContainer.Parent = bgFrame
+
+local particles = {}
+local orbitingParticles = {}
+
+-- Regular particles
+for i = 1, 40 do
+    local particle = Instance.new("Frame")
+    local size = math.random(1, 3)
+    particle.Size = scaledSize(size, size)
+    particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    particle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    particle.BackgroundTransparency = math.random(40, 70) / 100
+    particle.BorderSizePixel = 0
+    particle.Parent = particleContainer
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = particle
+
+    table.insert(particles, {
+        frame = particle,
+        vx = (math.random() - 0.5) * 0.001,
+        vy = (math.random() - 0.5) * 0.001,
+        hue = 0.55 + math.random() * 0.2
+    })
+end
+
+-- Orbital particles (will orbit around the central window)
+for i = 1, 20 do
+    local particle = Instance.new("Frame")
+    local size = math.random(2, 4)
+    particle.Size = scaledSize(size, size)
+    particle.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
+    particle.BackgroundTransparency = 0.3
+    particle.BorderSizePixel = 0
+    particle.Parent = particleContainer
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = particle
+    
+    local glow = Instance.new("Frame")
+    glow.Size = scaledSize(size * 3, size * 3)
+    glow.Position = UDim2.fromScale(0.5, 0.5)
+    glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    glow.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
+    glow.BackgroundTransparency = 0.8
+    glow.BorderSizePixel = 0
+    glow.Parent = particle
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(1, 0)
+    glowCorner.Parent = glow
+
+    table.insert(orbitingParticles, {
+        frame = particle,
+        glow = glow,
+        angle = (i / 20) * math.pi * 2,
+        radius = 150 + math.random() * 100,
+        speed = 0.5 + math.random() * 0.5,
+        offset = math.random() * math.pi * 2
+    })
+end
+
+-- Update particles with orbital motion
+animationLoops.particles = true
+connections.particles = RunService.Heartbeat:Connect(function()
+    if not animationLoops.particles then return end
+    
+    -- Update regular particles
+    for _, p in ipairs(particles) do
+        if p.frame and p.frame.Parent then
+            local pos = p.frame.Position
+            local newX = pos.X.Scale + p.vx
+            local newY = pos.Y.Scale + p.vy
+
+            if newX < 0 or newX > 1 then p.vx = -p.vx end
+            if newY < 0 or newY > 1 then p.vy = -p.vy end
+
+            p.frame.Position = UDim2.new(
+                math.clamp(newX, 0, 1), 0,
+                math.clamp(newY, 0, 1), 0
+            )
+            
+            local grayValue = 150 + math.sin(tick() * 0.5 + p.hue * 10) * 50
+            p.frame.BackgroundColor3 = Color3.fromRGB(grayValue, grayValue, grayValue)
+        end
+    end
+    
+    -- Update orbital particles
+    if centerWindowPos ~= Vector2.new(0, 0) then
+        for _, p in ipairs(orbitingParticles) do
+            if p.frame and p.frame.Parent then
+                p.angle = p.angle + p.speed * 0.01
+                local x = centerWindowPos.X + math.cos(p.angle + p.offset) * p.radius
+                local y = centerWindowPos.Y + math.sin(p.angle + p.offset) * p.radius
+                
+                p.frame.Position = UDim2.fromOffset(x, y)
+                
+                -- Pulse glow
+                local pulse = math.sin(tick() * 3 + p.offset) * 0.2 + 0.8
+                p.glow.BackgroundTransparency = 0.8 - pulse * 0.3
+            end
+        end
+    end
+end)
+
+-- ================================================================= --
+-- CINEMATIC INTRO SEQUENCE
+-- ================================================================= --
+
+local introContainer = Instance.new("Frame")
+introContainer.Name = "IntroSequence"
+introContainer.Size = UDim2.new(1, 0, 1, 0)
+introContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+introContainer.BorderSizePixel = 0
+introContainer.ZIndex = 150
+introContainer.Parent = gui
+
+local introLogo = Instance.new("TextLabel")
+introLogo.Size = scaledSize(800, 150)
+introLogo.Position = UDim2.fromScale(0.5, 0.5)
+introLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+introLogo.Text = "MIST HUB"
+introLogo.TextSize = 72 * getScale()
+introLogo.Font = Enum.Font.GothamBold
+introLogo.TextColor3 = Color3.fromRGB(255, 255, 255)
+introLogo.BackgroundTransparency = 1
+introLogo.TextTransparency = 1
+introLogo.TextStrokeTransparency = 0.3
+introLogo.ZIndex = 151
+introLogo.Parent = introContainer
+
+local logoGradient = Instance.new("UIGradient")
+logoGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(220, 220, 220)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))
+}
+logoGradient.Parent = introLogo
+
+local loadingContainer = Instance.new("Frame")
+loadingContainer.Size = scaledSize(400, 6)
+loadingContainer.Position = UDim2.new(0.5, 0, 0.5, 100 * getScale())
+loadingContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+loadingContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+loadingContainer.BorderSizePixel = 0
+loadingContainer.BackgroundTransparency = 1
+loadingContainer.ZIndex = 151
+loadingContainer.Parent = introContainer
+
+local loadingBar = Instance.new("Frame")
+loadingBar.Size = UDim2.new(0, 0, 1, 0)
+loadingBar.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+loadingBar.BorderSizePixel = 0
+loadingBar.ZIndex = 152
+loadingBar.Parent = loadingContainer
+
+local barGradient = Instance.new("UIGradient")
+barGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220))
+}
+barGradient.Parent = loadingBar
+
+local loadingText = Instance.new("TextLabel")
+loadingText.Size = scaledSize(400, 30)
+loadingText.Position = UDim2.new(0.5, 0, 0.5, 130 * getScale())
+loadingText.AnchorPoint = Vector2.new(0.5, 0.5)
+loadingText.Text = "Initializing..."
+loadingText.TextSize = 16 * getScale()
+loadingText.Font = Enum.Font.Gotham
+loadingText.TextColor3 = Color3.fromRGB(180, 180, 180)
+loadingText.BackgroundTransparency = 1
+loadingText.TextTransparency = 1
+loadingText.ZIndex = 151
+loadingText.Parent = introContainer
+
+local percentage = Instance.new("TextLabel")
+percentage.Size = scaledSize(100, 40)
+percentage.Position = UDim2.new(0.5, 0, 0.5, 160 * getScale())
+percentage.AnchorPoint = Vector2.new(0.5, 0.5)
+percentage.Text = "0%"
+percentage.TextSize = 24 * getScale()
+percentage.Font = Enum.Font.GothamBold
+percentage.TextColor3 = Color3.fromRGB(200, 200, 200)
+percentage.BackgroundTransparency = 1
+percentage.TextTransparency = 1
+percentage.ZIndex = 151
+percentage.Parent = introContainer
+
+-- ENHANCED INTRO SEQUENCE
+task.spawn(function()
+    -- Fade in background first
+    local bgTween = TweenService:Create(bgFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0
+    })
+    bgTween:Play()
+    table.insert(tweens, bgTween)
+    
+    task.wait(0.2)
+    
+    -- Then fade in logo
+    local logoTween = TweenService:Create(introLogo, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    })
+    logoTween:Play()
+    table.insert(tweens, logoTween)
+    
+    task.wait(0.3)
+    
+    -- Finally fade in loader
+    local containerTween = TweenService:Create(loadingContainer, TweenInfo.new(0.3), {BackgroundTransparency = 0.3})
+    containerTween:Play()
+    table.insert(tweens, containerTween)
+    
+    local textTween = TweenService:Create(loadingText, TweenInfo.new(0.3), {TextTransparency = 0})
+    textTween:Play()
+    table.insert(tweens, textTween)
+    
+    local percentTween = TweenService:Create(percentage, TweenInfo.new(0.3), {TextTransparency = 0})
+    percentTween:Play()
+    table.insert(tweens, percentTween)
+    
+    task.wait(0.3)
+    
+    local stages = {
+        {text = "Loading SDK...", duration = 0.5},
+        {text = "Connecting to servers...", duration = 0.7},
+        {text = "Verifying integrity...", duration = 0.6},
+        {text = "Preparing interface...", duration = 0.5}
+    }
+    
+    local totalDuration = 0
+    for _, stage in ipairs(stages) do
+        totalDuration = totalDuration + stage.duration
+    end
+    
+    local elapsed = 0
+    for _, stage in ipairs(stages) do
+        loadingText.Text = stage.text
+        
+        local stageProgress = TweenService:Create(loadingBar, 
+            TweenInfo.new(stage.duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {Size = UDim2.new((elapsed + stage.duration) / totalDuration, 0, 1, 0)})
+        stageProgress:Play()
+        table.insert(tweens, stageProgress)
+        
+        for i = 1, stage.duration * 20 do
+            elapsed = math.min(elapsed + stage.duration / 20, totalDuration)
+            percentage.Text = math.floor((elapsed / totalDuration) * 100) .. "%"
+            task.wait(stage.duration / 20)
+        end
+    end
+    
+    loadingText.Text = "Complete!"
+    task.wait(0.3)
+    
+    local introOutTween = TweenService:Create(introContainer, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        BackgroundTransparency = 1
+    })
+    introOutTween:Play()
+    table.insert(tweens, introOutTween)
+    
+    local logoOutTween = TweenService:Create(introLogo, TweenInfo.new(0.6), {TextTransparency = 1})
+    logoOutTween:Play()
+    table.insert(tweens, logoOutTween)
+    
+    local containerOutTween = TweenService:Create(loadingContainer, TweenInfo.new(0.6), {BackgroundTransparency = 1})
+    containerOutTween:Play()
+    table.insert(tweens, containerOutTween)
+    
+    local barOutTween = TweenService:Create(loadingBar, TweenInfo.new(0.6), {BackgroundTransparency = 1})
+    barOutTween:Play()
+    table.insert(tweens, barOutTween)
+    
+    local textOutTween = TweenService:Create(loadingText, TweenInfo.new(0.6), {TextTransparency = 1})
+    textOutTween:Play()
+    table.insert(tweens, textOutTween)
+    
+    local percentOutTween = TweenService:Create(percentage, TweenInfo.new(0.6), {TextTransparency = 1})
+    percentOutTween:Play()
+    table.insert(tweens, percentOutTween)
+    
+    task.wait(0.6)
+    introContainer:Destroy()
+end)
+
+-- ================================================================= --
+-- MAIN CIRCULAR WINDOW (ADVANCED DESIGN)
+-- ================================================================= --
+
+local main = Instance.new("Frame")
+main.Name = "MainWindow"
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+main.BackgroundTransparency = 0.4
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Position = UDim2.fromScale(0.5, 0.5)
+main.Size = scaledSize(600, 600)
+main.BorderSizePixel = 0
+main.ZIndex = 10
+main.Parent = gui
+
+-- Make it circular
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(1, 0)
+mainCorner.Parent = main
+
+-- Multi-layer glassmorphism effect
+local glassLayer1 = Instance.new("Frame")
+glassLayer1.Name = "GlassLayer1"
+glassLayer1.Size = UDim2.new(0.9, 0, 0.9, 0)
+glassLayer1.Position = UDim2.fromScale(0.05, 0.05)
+glassLayer1.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+glassLayer1.BackgroundTransparency = 0.6
+glassLayer1.BorderSizePixel = 0
+glassLayer1.ZIndex = 11
+glassLayer1.Parent = main
+
+local glassCorner1 = Instance.new("UICorner")
+glassCorner1.CornerRadius = UDim.new(1, 0)
+glassCorner1.Parent = glassLayer1
+
+local glassLayer2 = Instance.new("Frame")
+glassLayer2.Name = "GlassLayer2"
+glassLayer2.Size = UDim2.new(0.8, 0, 0.8, 0)
+glassLayer2.Position = UDim2.fromScale(0.1, 0.1)
+glassLayer2.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+glassLayer2.BackgroundTransparency = 0.7
+glassLayer2.BorderSizePixel = 0
+glassLayer2.ZIndex = 12
+glassLayer2.Parent = main
+
+local glassCorner2 = Instance.new("UICorner")
+glassCorner2.CornerRadius = UDim.new(1, 0)
+glassCorner2.Parent = glassLayer2
+
+-- Status Ring (outer ring)
+local statusRing = Instance.new("Frame")
+statusRing.Name = "StatusRing"
+statusRing.Size = UDim2.new(0.95, 0, 0.95, 0)
+statusRing.Position = UDim2.fromScale(0.025, 0.025)
+statusRing.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+statusRing.BackgroundTransparency = 0.8
+statusRing.BorderSizePixel = 0
+statusRing.ZIndex = 13
+statusRing.Parent = main
+
+local ringCorner = Instance.new("UICorner")
+ringCorner.CornerRadius = UDim.new(1, 0)
+ringCorner.Parent = statusRing
+
+local ringStroke = Instance.new("UIStroke")
+ringStroke.Color = Color3.fromRGB(100, 200, 255)
+ringStroke.Thickness = 3
+ringStroke.Transparency = 0.5
+ringStroke.Parent = statusRing
+
+-- Animated pulse on the ring
+local ringPulse = Instance.new("Frame")
+ringPulse.Name = "RingPulse"
+ringPulse.Size = UDim2.new(0.98, 0, 0.98, 0)
+ringPulse.Position = UDim2.fromScale(0.01, 0.01)
+ringPulse.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+ringPulse.BackgroundTransparency = 1
+ringPulse.BorderSizePixel = 0
+ringPulse.ZIndex = 14
+ringPulse.Parent = statusRing
+
+local pulseCorner = Instance.new("UICorner")
+pulseCorner.CornerRadius = UDim.new(1, 0)
+pulseCorner.Parent = ringPulse
+
+-- Update center window position for constellation interaction
+centerWindowPos = Vector2.new(
+    main.AbsolutePosition.X + main.AbsoluteSize.X / 2,
+    main.AbsolutePosition.Y + main.AbsoluteSize.Y / 2
+)
+
+-- Animate ring pulse
+animationLoops.ringPulse = true
+task.spawn(function()
+    while animationLoops.ringPulse and ringPulse.Parent do
+        local pulseTween = TweenService:Create(ringPulse, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.9
+        })
+        pulseTween:Play()
+        table.insert(tweens, pulseTween)
+        task.wait(2)
+        
+        local pulseTween2 = TweenService:Create(ringPulse, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 1
+        })
+        pulseTween2:Play()
+        table.insert(tweens, pulseTween2)
+        task.wait(2)
+    end
+end)
+
+-- ================================================================= --
+-- CLOSE BUTTON (CIRCULAR DESIGN)
+-- ================================================================= --
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = scaledSize(50, 50)
+closeBtn.Position = UDim2.new(0.5, 250 * getScale(), 0.5, -250 * getScale())
+closeBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+closeBtn.BackgroundTransparency = 0.3
+closeBtn.Text = "×"
+closeBtn.TextSize = 28 * getScale()
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 20
+closeBtn.Parent = main
+
+local closeBtnCorner = Instance.new("UICorner")
+closeBtnCorner.CornerRadius = UDim.new(1, 0)
+closeBtnCorner.Parent = closeBtn
+
+local closeBtnGlow = Instance.new("UIStroke")
+closeBtnGlow.Color = Color3.fromRGB(255, 60, 60)
+closeBtnGlow.Thickness = 0
+closeBtnGlow.Transparency = 0.5
+closeBtnGlow.Parent = closeBtn
+
+connections.closeBtnEnter = closeBtn.MouseEnter:Connect(function()
+    local enterTween = TweenService:Create(closeBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 100, 100),
+        Size = scaledSize(55, 55)
+    })
+    enterTween:Play()
+    table.insert(tweens, enterTween)
+    
+    local glowTween = TweenService:Create(closeBtnGlow, TweenInfo.new(0.2), {
+        Thickness = 3,
+        Transparency = 0.2
+    })
+    glowTween:Play()
+    table.insert(tweens, glowTween)
+end)
+
+connections.closeBtnLeave = closeBtn.MouseLeave:Connect(function()
+    local leaveTween = TweenService:Create(closeBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 60, 60),
+        Size = scaledSize(50, 50)
+    })
+    leaveTween:Play()
+    table.insert(tweens, leaveTween)
+    
+    local glowTween = TweenService:Create(closeBtnGlow, TweenInfo.new(0.2), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    glowTween:Play()
+    table.insert(tweens, glowTween)
+end)
+
+connections.closeBtnClick = closeBtn.MouseButton1Click:Connect(function()
+    -- Enhanced outro animation
+    local fadeElements = {
+        {element = main, delay = 0},
+        {element = bgFrame, delay = 0.2},
+        {element = constellationContainer, delay = 0.1},
+        {element = particleContainer, delay = 0.15}
+    }
+    
+    for _, data in ipairs(fadeElements) do
+        task.spawn(function()
+            task.wait(data.delay)
+            if data.element and data.element.Parent then
+                local fadeTween = TweenService:Create(data.element, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    BackgroundTransparency = 1
+                })
+                fadeTween:Play()
+                table.insert(tweens, fadeTween)
+                
+                for _, child in ipairs(data.element:GetDescendants()) do
+                    if child:IsA("GuiObject") then
+                        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                            local textTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                TextTransparency = 1
+                            })
+                            textTween:Play()
+                            table.insert(tweens, textTween)
+                        end
+                        local bgTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                            BackgroundTransparency = 1
+                        })
+                        bgTween:Play()
+                        table.insert(tweens, bgTween)
+                    end
+                    if child:IsA("UIStroke") then
+                        local strokeTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                            Transparency = 1
+                        })
+                        strokeTween:Play()
+                        table.insert(tweens, strokeTween)
+                    end
+                end
+            end
+        end)
+    end
+    
+    task.wait(0.8)
+    cleanup()
+end)
+
+-- ================================================================= --
+-- TITLE (MINIMALIST DESIGN)
+-- ================================================================= --
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(0, 300 * getScale(), 0, 50 * getScale())
+title.Position = UDim2.new(0.5, 0, 0.5, -200 * getScale())
+title.AnchorPoint = Vector2.new(0.5, 0.5)
+title.Text = "MIST HUB"
+title.TextSize = 36 * getScale()
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.BackgroundTransparency = 1
+title.TextStrokeTransparency = 0.8
+title.ZIndex = 15
+title.Parent = main
+
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220))
+}
+titleGradient.Parent = title
+
+-- ================================================================= --
+-- CENTRAL HOLOGRAPHIC INPUT
+-- ================================================================= --
+
+local inputContainer = Instance.new("Frame")
+inputContainer.Name = "InputContainer"
+inputContainer.Size = scaledSize(300, 80)
+inputContainer.Position = UDim2.new(0.5, 0, 0.5, -40 * getScale())
+inputContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+inputContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+inputContainer.BackgroundTransparency = 0.5
+inputContainer.BorderSizePixel = 0
+inputContainer.ZIndex = 16
+inputContainer.Parent = main
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 20 * getScale())
+inputCorner.Parent = inputContainer
+
+local inputStroke = Instance.new("UIStroke")
+inputStroke.Color = Color3.fromRGB(80, 80, 100)
+inputStroke.Thickness = 2
+inputStroke.Transparency = 0.6
+inputStroke.Parent = inputContainer
+
+local inputGlow = Instance.new("UIStroke")
+inputGlow.Color = Color3.fromRGB(200, 200, 200)
+inputGlow.Thickness = 0
+inputGlow.Transparency = 0.5
+inputGlow.Parent = inputContainer
+
+-- Holographic effect layers
+local holoLayer1 = Instance.new("Frame")
+holoLayer1.Size = UDim2.new(0.95, 0, 0.95, 0)
+holoLayer1.Position = UDim2.fromScale(0.025, 0.025)
+holoLayer1.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+holoLayer1.BackgroundTransparency = 0.9
+holoLayer1.BorderSizePixel = 0
+holoLayer1.ZIndex = 17
+holoLayer1.Parent = inputContainer
+
+local holoCorner1 = Instance.new("UICorner")
+holoCorner1.CornerRadius = UDim.new(0, 18 * getScale())
+holoCorner1.Parent = holoLayer1
+
+local holoLayer2 = Instance.new("Frame")
+holoLayer2.Size = UDim2.new(0.9, 0, 0.9, 0)
+holoLayer2.Position = UDim2.fromScale(0.05, 0.05)
+holoLayer2.BackgroundColor3 = Color3.fromRGB(150, 220, 255)
+holoLayer2.BackgroundTransparency = 0.95
+holoLayer2.BorderSizePixel = 0
+holoLayer2.ZIndex = 18
+holoLayer2.Parent = inputContainer
+
+local holoCorner2 = Instance.new("UICorner")
+holoCorner2.CornerRadius = UDim.new(0, 16 * getScale())
+holoCorner2.Parent = holoLayer2
+
+-- Animate holographic layers
+animationLoops.holographic = true
+task.spawn(function()
+    while animationLoops.holographic and holoLayer1.Parent do
+        local holoTween1 = TweenService:Create(holoLayer1, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.85
+        })
+        holoTween1:Play()
+        table.insert(tweens, holoTween1)
+        
+        local holoTween2 = TweenService:Create(holoLayer2, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.9
+        })
+        holoTween2:Play()
+        table.insert(tweens, holoTween2)
+        
+        task.wait(3)
+        
+        local holoTween3 = TweenService:Create(holoLayer1, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.95
+        })
+        holoTween3:Play()
+        table.insert(tweens, holoTween3)
+        
+        local holoTween4 = TweenService:Create(holoLayer2, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.95
+        })
+        holoTween4:Play()
+        table.insert(tweens, holoTween4)
+        
+        task.wait(3)
+    end
+end)
+
+local inputIcon = Instance.new("TextLabel")
+inputIcon.Size = UDim2.new(0, 40 * getScale(), 1, 0)
+inputIcon.Position = UDim2.new(0, 10 * getScale(), 0, 0)
+inputIcon.Text = "🔑"
+inputIcon.TextSize = 22 * getScale()
+inputIcon.BackgroundTransparency = 1
+inputIcon.ZIndex = 19
+inputIcon.Parent = inputContainer
+
+local input = Instance.new("TextBox")
+input.Name = "KeyInput"
+input.Size = UDim2.new(1, -100 * getScale(), 1, -10 * getScale())
+input.Position = UDim2.new(0, 50 * getScale(), 0, 5 * getScale())
+input.BackgroundTransparency = 1
+input.PlaceholderText = "Enter your key here..."
+input.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+input.TextSize = 16 * getScale()
+input.TextColor3 = Color3.fromRGB(255, 255, 255)
+input.Font = Enum.Font.Gotham
+input.TextXAlignment = Enum.TextXAlignment.Left
+input.ClearTextOnFocus = false
+input.Text = ""
+input.ZIndex = 19
+input.Parent = inputContainer
+
+-- Enhanced key masking system
+local actualKey = ""
+local keyVisible = false
+local lastTextLength = 0
+
+local function updateDisplayText()
+    if keyVisible or actualKey == "" then
+        input.Text = actualKey
+    else
+        input.Text = string.rep("*", #actualKey)
+    end
+    lastTextLength = #input.Text
+end
+
+connections.inputChanged = input.Changed:Connect(function(property)
+    if property == "Text" then
+        local currentText = input.Text
+        if keyVisible then
+            actualKey = currentText
+        else
+            if #currentText > lastTextLength then
+                local added = currentText:sub(lastTextLength + 1)
+                actualKey = actualKey .. added
+            elseif #currentText < lastTextLength then
+                actualKey = actualKey:sub(1, #actualKey - (lastTextLength - #currentText))
+            end
+            updateDisplayText()
+        end
+    end
+end)
+
+connections.inputFocusLost = input.FocusLost:Connect(function()
+    if not keyVisible then
+        updateDisplayText()
+    end
+end)
+
+local showKeyBtn = Instance.new("TextButton")
+showKeyBtn.Size = UDim2.new(0, 40 * getScale(), 0, 40 * getScale())
+showKeyBtn.Position = UDim2.new(1, -50 * getScale(), 0.5, 0)
+showKeyBtn.AnchorPoint = Vector2.new(0, 0.5)
+showKeyBtn.BackgroundTransparency = 1
+showKeyBtn.Text = "👁‍🗨"
+showKeyBtn.TextSize = 18 * getScale()
+showKeyBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+showKeyBtn.Font = Enum.Font.Gotham
+showKeyBtn.ZIndex = 19
+showKeyBtn.Parent = inputContainer
+
+local showKeyGlow = Instance.new("UIStroke")
+showKeyGlow.Color = Color3.fromRGB(180, 180, 180)
+showKeyGlow.Thickness = 0
+showKeyGlow.Transparency = 0.5
+showKeyGlow.Parent = showKeyBtn
+
+connections.showKeyClick = showKeyBtn.MouseButton1Click:Connect(function()
+    keyVisible = not keyVisible
+    showKeyBtn.Text = keyVisible and "👁" or "👁‍🗨"
+    updateDisplayText()
+end)
+
+connections.showKeyEnter = showKeyBtn.MouseEnter:Connect(function()
+    local enterTween = TweenService:Create(showKeyGlow, TweenInfo.new(0.2), {
+        Thickness = 2,
+        Transparency = 0.2
+    })
+    enterTween:Play()
+    table.insert(tweens, enterTween)
+    
+    local textTween = TweenService:Create(showKeyBtn, TweenInfo.new(0.2), {
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    })
+    textTween:Play()
+    table.insert(tweens, textTween)
+end)
+
+connections.showKeyLeave = showKeyBtn.MouseLeave:Connect(function()
+    local leaveTween = TweenService:Create(showKeyGlow, TweenInfo.new(0.2), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    leaveTween:Play()
+    table.insert(tweens, leaveTween)
+    
+    local textTween = TweenService:Create(showKeyBtn, TweenInfo.new(0.2), {
+        TextColor3 = Color3.fromRGB(180, 180, 180)
+    })
+    textTween:Play()
+    table.insert(tweens, textTween)
+end)
+
+connections.inputFocused = input.Focused:Connect(function()
+    local focusTween1 = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+        Color = Color3.fromRGB(200, 200, 200),
+        Transparency = 0,
+        Thickness = 2
+    })
+    focusTween1:Play()
+    table.insert(tweens, focusTween1)
+    
+    local focusTween2 = TweenService:Create(inputGlow, TweenInfo.new(0.3), {
+        Thickness = 3,
+        Transparency = 0.2
+    })
+    focusTween2:Play()
+    table.insert(tweens, focusTween2)
+    
+    local focusTween3 = TweenService:Create(inputContainer, TweenInfo.new(0.3), {
+        BackgroundTransparency = 0.3,
+        Size = scaledSize(310, 85)
+    })
+    focusTween3:Play()
+    table.insert(tweens, focusTween3)
+end)
+
+connections.inputFocusLost = input.FocusLost:Connect(function()
+    local blurTween1 = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+        Color = Color3.fromRGB(80, 80, 100),
+        Transparency = 0.6
+    })
+    blurTween1:Play()
+    table.insert(tweens, blurTween1)
+    
+    local blurTween2 = TweenService:Create(inputGlow, TweenInfo.new(0.3), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    blurTween2:Play()
+    table.insert(tweens, blurTween2)
+    
+    local blurTween3 = TweenService:Create(inputContainer, TweenInfo.new(0.3), {
+        BackgroundTransparency = 0.5,
+        Size = scaledSize(300, 80)
+    })
+    blurTween3:Play()
+    table.insert(tweens, blurTween3)
+end)
+
+-- ================================================================= --
+-- RADIAL BUTTON ARRANGEMENT
+-- ================================================================= --
+
+local function createRadialButton(text, angle, color1, color2, icon)
+    local radius = 180 * getScale()
+    local btn = Instance.new("TextButton")
+    btn.Size = scaledSize(140, 50)
+    btn.Position = UDim2.new(0.5, math.cos(angle) * radius, 0.5, math.sin(angle) * radius)
+    btn.AnchorPoint = Vector2.new(0.5, 0.5)
+    btn.BackgroundColor3 = color1
+    btn.BackgroundTransparency = 0.3
+    btn.Text = ""
+    btn.BorderSizePixel = 0
+    btn.ZIndex = 16
+    btn.Rotation = math.deg(angle)
+    btn.Parent = main
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 25 * getScale())
+    btnCorner.Parent = btn
+
+    local btnGradient = Instance.new("UIGradient")
+    btnGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(1, color2)
+    }
+    btnGradient.Rotation = 45
+    btnGradient.Parent = btn
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = color2
+    btnStroke.Thickness = 2
+    btnStroke.Transparency = 0.5
+    btnStroke.Parent = btn
+
+    local btnGlow = Instance.new("UIStroke")
+    btnGlow.Color = color2
+    btnGlow.Thickness = 0
+    btnGlow.Transparency = 0.3
+    btnGlow.Parent = btn
+
+    local btnIcon = Instance.new("TextLabel")
+    btnIcon.Size = UDim2.new(0, 30 * getScale(), 1, 0)
+    btnIcon.Position = UDim2.new(0, 10 * getScale(), 0, 0)
+    btnIcon.Text = icon
+    btnIcon.TextSize = 20 * getScale()
+    btnIcon.TextColor3 = Color3.new(1, 1, 1)
+    btnIcon.Font = Enum.Font.GothamBold
+    btnIcon.BackgroundTransparency = 1
+    btnIcon.ZIndex = 17
+    btnIcon.Rotation = -math.deg(angle)
+    btnIcon.Parent = btn
+
+    local btnText = Instance.new("TextLabel")
+    btnText.Size = UDim2.new(1, -50 * getScale(), 1, 0)
+    btnText.Position = UDim2.new(0, 40 * getScale(), 0, 0)
+    btnText.Text = text
+    btnText.TextSize = 16 * getScale()
+    btnText.TextColor3 = Color3.new(1, 1, 1)
+    btnText.Font = Enum.Font.GothamBold
+    btnText.TextXAlignment = Enum.TextXAlignment.Left
+    btnText.BackgroundTransparency = 1
+    btnText.ZIndex = 17
+    btnText.Rotation = -math.deg(angle)
+    btnText.Parent = btn
+
+    -- Orbital animation
+    local originalAngle = angle
+    animationLoops["btnOrbit" .. text] = true
+    task.spawn(function()
+        while animationLoops["btnOrbit" .. text] and btn.Parent do
+            local newAngle = originalAngle + math.sin(tick() * 0.5) * 0.05
+            local newX = math.cos(newAngle) * radius
+            local newY = math.sin(newAngle) * radius
+            
+            local orbitTween = TweenService:Create(btn, TweenInfo.new(0.1), {
+                Position = UDim2.new(0.5, newX, 0.5, newY)
+            })
+            orbitTween:Play()
+            table.insert(tweens, orbitTween)
+            
+            task.wait(0.1)
+        end
+    end)
+
+    connections[btn.Name .. "Enter"] = btn.MouseEnter:Connect(function()
+        local enterTween = TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.1,
+            Size = scaledSize(150, 55)
+        })
+        enterTween:Play()
+        table.insert(tweens, enterTween)
+        
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.3), {
+            Thickness = 3,
+            Transparency = 0.2
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+        
+        local glowTween = TweenService:Create(btnGlow, TweenInfo.new(0.3), {
+            Thickness = 5,
+            Transparency = 0.1
+        })
+        glowTween:Play()
+        table.insert(tweens, glowTween)
+        
+        local iconTween = TweenService:Create(btnIcon, TweenInfo.new(0.3), {
+            TextSize = 24 * getScale()
+        })
+        iconTween:Play()
+        table.insert(tweens, iconTween)
+    end)
+
+    connections[btn.Name .. "Leave"] = btn.MouseLeave:Connect(function()
+        local leaveTween = TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.3,
+            Size = scaledSize(140, 50)
+        })
+        leaveTween:Play()
+        table.insert(tweens, leaveTween)
+        
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.3), {
+            Thickness = 2,
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+        
+        local glowTween = TweenService:Create(btnGlow, TweenInfo.new(0.3), {
+            Thickness = 0,
+            Transparency = 0.3
+        })
+        glowTween:Play()
+        table.insert(tweens, glowTween)
+        
+        local iconTween = TweenService:Create(btnIcon, TweenInfo.new(0.3), {
+            TextSize = 20 * getScale()
+        })
+        iconTween:Play()
+        table.insert(tweens, iconTween)
+    end)
+
+    connections[btn.Name .. "Down"] = btn.MouseButton1Down:Connect(function()
+        local downTween = TweenService:Create(btn, TweenInfo.new(0.1), {
+            Size = scaledSize(135, 47)
+        })
+        downTween:Play()
+        table.insert(tweens, downTween)
+    end)
+
+    connections[btn.Name .. "Up"] = btn.MouseButton1Up:Connect(function()
+        local upTween = TweenService:Create(btn, TweenInfo.new(0.1), {
+            Size = scaledSize(150, 55)
+        })
+        upTween:Play()
+        table.insert(tweens, upTween)
+    end)
+
+    return btn
+end
+
+-- Create radial buttons
+local validateBtn = createRadialButton("Validate Key", math.rad(-30), 
+    Color3.fromRGB(40, 180, 99), 
+    Color3.fromRGB(20, 230, 120), 
+    "✓")
+
+local getKeyBtn = createRadialButton("Get Key", math.rad(0), 
+    Color3.fromRGB(52, 152, 219), 
+    Color3.fromRGB(41, 128, 185), 
+    "🔑")
+
+local discordBtn = createRadialButton("Join Discord", math.rad(30),
+    Color3.fromRGB(88, 101, 242),
+    Color3.fromRGB(71, 82, 196),
+    "💬")
+
+-- ================================================================= --
+-- NOTIFICATION SYSTEM (ENHANCED)
+-- ================================================================= --
+
+local function notify(message, success)
+    local notif = Instance.new("Frame")
+    notif.Name = "Notification"
+    notif.Size = scaledSize(400, 80)
+    notif.Position = UDim2.new(0.5, 0, 1, 20 * getScale())
+    notif.AnchorPoint = Vector2.new(0.5, 0)
+    notif.BackgroundColor3 = success and Color3.fromRGB(30, 150, 80) or Color3.fromRGB(200, 60, 60)
+    notif.BackgroundTransparency = 0.2
+    notif.BorderSizePixel = 0
+    notif.ZIndex = 200
+    notif.Parent = gui
+
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 16 * getScale())
+    notifCorner.Parent = notif
+
+    local notifStroke = Instance.new("UIStroke")
+    notifStroke.Color = success and Color3.fromRGB(50, 255, 150) or Color3.fromRGB(255, 100, 100)
+    notifStroke.Thickness = 2
+    notifStroke.Parent = notif
+
+    local notifGlow = Instance.new("Frame")
+    notifGlow.Size = UDim2.new(1, 20 * getScale(), 1, 20 * getScale())
+    notifGlow.Position = UDim2.fromScale(0.5, 0.5)
+    notifGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+    notifGlow.BackgroundColor3 = success and Color3.fromRGB(50, 255, 150) or Color3.fromRGB(255, 100, 100)
+    notifGlow.BackgroundTransparency = 0.9
+    notifGlow.BorderSizePixel = 0
+    notifGlow.ZIndex = 199
+    notifGlow.Parent = notif
+    
+    local glowC = Instance.new("UICorner")
+    glowC.CornerRadius = UDim.new(0, 20 * getScale())
+    glowC.Parent = notifGlow
+
+    local icon = Instance.new("TextLabel")
+    icon.Size = UDim2.new(0, 50 * getScale(), 1, 0)
+    icon.Position = UDim2.new(0, 15 * getScale(), 0, 0)
+    icon.BackgroundTransparency = 1
+    icon.Text = success and "✓" or "✗"
+    icon.TextSize = 32 * getScale()
+    icon.TextColor3 = Color3.new(1, 1, 1)
+    icon.Font = Enum.Font.GothamBold
+    icon.ZIndex = 201
+    icon.Parent = notif
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, -80 * getScale(), 1, 0)
+    text.Position = UDim2.new(0, 65 * getScale(), 0, 0)
+    text.BackgroundTransparency = 1
+    text.Text = message
+    text.TextSize = 16 * getScale()
+    text.TextColor3 = Color3.new(1, 1, 1)
+    text.Font = Enum.Font.GothamSemibold
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.TextWrapped = true
+    text.ZIndex = 201
+    text.Parent = notif
+
+    local progress = Instance.new("Frame")
+    progress.Size = UDim2.new(1, 0, 0, 4)
+    progress.Position = UDim2.new(0, 0, 1, -4)
+    progress.BackgroundColor3 = Color3.new(1, 1, 1)
+    progress.BackgroundTransparency = 0.3
+    progress.BorderSizePixel = 0
+    progress.ZIndex = 202
+    progress.Parent = notif
+
+    local progressCorner = Instance.new("UICorner")
+    progressCorner.CornerRadius = UDim.new(0, 2 * getScale())
+    progressCorner.Parent = progress
+
+    local slideIn = TweenService:Create(notif, 
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+        {Position = UDim2.new(0.5, 0, 1, -100 * getScale())})
+    slideIn:Play()
+    table.insert(tweens, slideIn)
+
+    local progressTween = TweenService:Create(progress, TweenInfo.new(3.5, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 4)
+    })
+    progressTween:Play()
+    table.insert(tweens, progressTween)
+
+    task.delay(3.5, function()
+        local slideOut = TweenService:Create(notif, 
+            TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {Position = UDim2.new(0.5, 0, 1, 20 * getScale())})
+        slideOut:Play()
+        table.insert(tweens, slideOut)
+        slideOut.Completed:Connect(function()
+            notif:Destroy()
+        end)
+    end)
+end
+
+-- ================================================================= --
+-- PORTAL SUCCESS ANIMATION
+-- ================================================================= --
+
+local function createPortalSuccess()
+    -- Create portal effect
+    local portal = Instance.new("Frame")
+    portal.Size = UDim2.new(0, 800 * getScale(), 0, 800 * getScale())
+    portal.Position = UDim2.fromScale(0.5, 0.5)
+    portal.AnchorPoint = Vector2.new(0.5, 0.5)
+    portal.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    portal.BackgroundTransparency = 1
+    portal.BorderSizePixel = 0
+    portal.ZIndex = 100
+    portal.Parent = gui
+
+    local portalCorner = Instance.new("UICorner")
+    portalCorner.CornerRadius = UDim.new(1, 0)
+    portalCorner.Parent = portal
+
+    -- Create swirling vortex effect
+    local vortex = Instance.new("Frame")
+    vortex.Size = UDim2.new(0.8, 0, 0.8, 0)
+    vortex.Position = UDim2.fromScale(0.1, 0.1)
+    vortex.BackgroundColor3 = Color3.fromRGB(150, 220, 255)
+    vortex.BackgroundTransparency = 0.8
+    vortex.BorderSizePixel = 0
+    vortex.ZIndex = 101
+    vortex.Parent = portal
+
+    local vortexCorner = Instance.new("UICorner")
+    vortexCorner.CornerRadius = UDim.new(1, 0)
+    vortexCorner.Parent = vortex
+
+    local vortexGradient = Instance.new("UIGradient")
+    vortexGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 220, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 240, 255))
+    }
+    vortexGradient.Parent = vortex
+
+    -- Animate portal opening
+    local portalOpen = TweenService:Create(portal, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 1200 * getScale(), 0, 1200 * getScale())
+    })
+    portalOpen:Play()
+    table.insert(tweens, portalOpen)
+
+    local vortexSpin = TweenService:Create(vortexGradient, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
+        Rotation = 360
+    })
+    vortexSpin:Play()
+    table.insert(tweens, vortexSpin)
+
+    -- Create energy particles
+    for i = 1, 30 do
+        local particle = Instance.new("Frame")
+        particle.Size = scaledSize(math.random(4, 8), math.random(4, 8))
+        particle.Position = UDim2.fromScale(0.5, 0.5)
+        particle.AnchorPoint = Vector2.new(0.5, 0.5)
+        particle.BackgroundColor3 = Color3.fromHSV(math.random(180, 220) / 360, 1, 1)
+        particle.BorderSizePixel = 0
+        particle.ZIndex = 102
+        particle.Parent = portal
+
+        local particleCorner = Instance.new("UICorner")
+        particleCorner.CornerRadius = UDim.new(1, 0)
+        particleCorner.Parent = particle
+
+        local angle = (i / 30) * math.pi * 2
+        local distance = math.random(100, 400) * getScale()
+        local endX = math.cos(angle) * distance
+        local endY = math.sin(angle) * distance
+
+        local particleTween = TweenService:Create(particle, 
+            TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {
+                Position = UDim2.new(0.5, endX, 0.5, endY),
+                BackgroundTransparency = 1,
+                Size = scaledSize(2, 2)
+            })
+        particleTween:Play()
+        table.insert(tweens, particleTween)
+
+        task.delay(1.5, function()
+            particle:Destroy()
+        end)
+    end
+
+    task.delay(2, function()
+        local portalClose = TweenService:Create(portal, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 200 * getScale(), 0, 200 * getScale())
+        })
+        portalClose:Play()
+        table.insert(tweens, portalClose)
+        
+        portalClose.Completed:Connect(function()
+            portal:Destroy()
+        end)
+    end)
+end
+
+-- ================================================================= --
+-- CONFETTI EFFECT
+-- ================================================================= --
+
+local function createConfetti()
+    for i = 1, 50 do
+        local confetti = Instance.new("Frame")
+        confetti.Size = scaledSize(math.random(4, 8), math.random(8, 16))
+        confetti.Position = UDim2.new(0.5, 0, 0.5, 0)
+        confetti.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+        confetti.BorderSizePixel = 0
+        confetti.Rotation = math.random(0, 360)
+        confetti.ZIndex = 250
+        confetti.Parent = gui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 2 * getScale())
+        corner.Parent = confetti
+        
+        local angle = math.random() * math.pi * 2
+        local distance = math.random(200, 500) * getScale()
+        local endX = 0.5 + math.cos(angle) * distance / camera.ViewportSize.X
+        local endY = 0.5 + math.sin(angle) * distance / camera.ViewportSize.Y
+        
+        local tween = TweenService:Create(confetti, 
+            TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {
+                Position = UDim2.new(endX, 0, endY, 0),
+                Rotation = confetti.Rotation + math.random(-180, 180),
+                BackgroundTransparency = 1
+            })
+        tween:Play()
+        table.insert(tweens, tween)
+        
+        task.delay(1.5, function()
+            confetti:Destroy()
+        end)
+    end
+end
+
+-- ================================================================= --
+-- BUTTON CLICK HANDLERS
+-- ================================================================= --
+
+connections.validateClick = validateBtn.MouseButton1Click:Connect(function()
+    local key = actualKey
+    if key == "" then
+        notify("Please enter a key!", false)
+        -- Shake animation for input
+        for i = 1, 4 do
+            local shakeTween1 = TweenService:Create(inputContainer, TweenInfo.new(0.05), {
+                Position = UDim2.new(0.5, 10 * getScale(), 0.5, -40 * getScale())
+            })
+            shakeTween1:Play()
+            table.insert(tweens, shakeTween1)
+            task.wait(0.05)
+            
+            local shakeTween2 = TweenService:Create(inputContainer, TweenInfo.new(0.05), {
+                Position = UDim2.new(0.5, -10 * getScale(), 0.5, -40 * getScale())
+            })
+            shakeTween2:Play()
+            table.insert(tweens, shakeTween2)
+            task.wait(0.05)
+        end
+        local resetTween = TweenService:Create(inputContainer, TweenInfo.new(0.1), {
+            Position = UDim2.new(0.5, 0, 0.5, -40 * getScale())
+        })
+        resetTween:Play()
+        table.insert(tweens, resetTween)
+    else
+        validateBtn.Active = false
+        
+        local result = JunkieProtected.ValidateKey({ Key = key })
+        if result == "valid" then
+            if writefile then
+                writefile(KEY_FILENAME, key)
+            end
+            notify("Key validated successfully! Welcome to MIST HUB", true)
+            createConfetti()
+            createPortalSuccess()
+            
+            task.wait(2.5)
+            
+            -- Enhanced fade-out outro
+            local fadeElements = {
+                {element = main, delay = 0},
+                {element = bgFrame, delay = 0.2},
+                {element = constellationContainer, delay = 0.1},
+                {element = particleContainer, delay = 0.15}
+            }
+            
+            for _, data in ipairs(fadeElements) do
+                task.spawn(function()
+                    task.wait(data.delay)
+                    if data.element and data.element.Parent then
+                        local fadeTween = TweenService:Create(data.element, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                            BackgroundTransparency = 1
+                        })
+                        fadeTween:Play()
+                        table.insert(tweens, fadeTween)
+                        
+                        for _, child in ipairs(data.element:GetDescendants()) do
+                            if child:IsA("GuiObject") then
+                                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                                    local textTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                        TextTransparency = 1
+                                    })
+                                    textTween:Play()
+                                    table.insert(tweens, textTween)
+                                end
+                                local bgTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                    BackgroundTransparency = 1
+                                })
+                                bgTween:Play()
+                                table.insert(tweens, bgTween)
+                            end
+                            if child:IsA("UIStroke") then
+                                local strokeTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                    Transparency = 1
+                                })
+                                strokeTween:Play()
+                                table.insert(tweens, strokeTween)
+                            end
+                        end
+                    end
+                end)
+            end
+            
+            task.wait(0.8)
+            cleanup()
+            RunMainScript()
+        else
+            notify("Invalid key. Please check and try again.", false)
+            validateBtn.Active = true
+        end
+    end
+end)
+
+connections.getKeyClick = getKeyBtn.MouseButton1Click:Connect(function()
+    local link = JunkieProtected.GetKeyLink()
+    if setclipboard then
+        setclipboard(link)
+        notify("Key link copied to clipboard! Paste in browser.", true)
+    else
+        notify("Clipboard not supported. Check console for link.", false)
+        print("Key Link:", link)
+    end
+end)
+
+connections.discordClick = discordBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(DISCORD_LINK)
+        notify("Discord link copied to clipboard!", true)
+    else
+        notify("Opening Discord in default browser...", true)
+        if syn and syn.request then
+            syn.request({
+                Url = "http://localhost/?redirect=" .. DISCORD_LINK,
+                Method = "GET"
+            })
+        end
+    end
+end)
+
+-- ================================================================= --
+-- RESIZE HANDLER
+-- ================================================================= --
+
+connections.resize = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    main.Size = scaledSize(600, 600)
+    main.Position = UDim2.fromScale(0.5, 0.5)
+    title.TextSize = 36 * getScale()
+    input.TextSize = 16 * getScale()
+    
+    -- Update center window position
+    centerWindowPos = Vector2.new(
+        main.AbsolutePosition.X + main.AbsoluteSize.X / 2,
+        main.AbsolutePosition.Y + main.AbsoluteSize.Y / 2
+    )
+end)
+
+-- ================================================================= --
+-- FINAL FADE-IN ANIMATION
+-- ================================================================= --
+
+task.wait(3)
+
+main.BackgroundTransparency = 1
+for _, child in ipairs(main:GetDescendants()) do
+    if child:IsA("GuiObject") then
+        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+            child.TextTransparency = 1
+        end
+        child.BackgroundTransparency = 1
+    end
+    if child:IsA("UIStroke") then
+        child.Transparency = 1
+    end
+end
+
+local mainFadeIn = TweenService:Create(main, TweenInfo.new(0.6), {
+    BackgroundTransparency = 0.4
+})
+mainFadeIn:Play()
+table.insert(tweens, mainFadeIn)
+
+task.wait(0.2)
+
+local function fadeIn(element, delay)
+    task.wait(delay)
+    if element:IsA("TextLabel") or element:IsA("TextButton") or element:IsA("TextBox") then
+        local textTween = TweenService:Create(element, TweenInfo.new(0.4), {
+            TextTransparency = 0,
+            BackgroundTransparency = element.Name == "CloseButton" and 0.3 or (element:IsA("Frame") and 0.5 or 1)
+        })
+        textTween:Play()
+        table.insert(tweens, textTween)
+    elseif element:IsA("Frame") then
+        local bgTween = TweenService:Create(element, TweenInfo.new(0.4), {
+            BackgroundTransparency = 0.5
+        })
+        bgTween:Play()
+        table.insert(tweens, bgTween)
+    end
+    
+    local stroke = element:FindFirstChildOfClass("UIStroke")
+    if stroke then
+        local strokeTween = TweenService:Create(stroke, TweenInfo.new(0.4), {
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+    end
+end
+
+local function fadeInRadialButton(button, delay)
+    task.wait(delay)
+    
+    local bgTween = TweenService:Create(button, TweenInfo.new(0.4), {
+        BackgroundTransparency = 0.3
+    })
+    bgTween:Play()
+    table.insert(tweens, bgTween)
+    
+    local btnStroke = button:FindFirstChildOfClass("UIStroke")
+    if btnStroke then
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.4), {
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+    end
+    
+    for _, child in ipairs(button:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local textTween = TweenService:Create(child, TweenInfo.new(0.4), {
+                TextTransparency = 0
+            })
+            textTween:Play()
+            table.insert(tweens, textTween)
+        end
+    end
+end
+
+fadeIn(closeBtn, 0)
+fadeIn(title, 0.1)
+fadeIn(inputContainer, 0.2)
+fadeIn(input, 0.2)
+fadeIn(inputIcon, 0.2)
+fadeIn(showKeyBtn, 0.2)
+fadeIn(statusRing, 0.15)
+fadeIn(glassLayer1, 0.1)
+fadeIn(glassLayer2, 0.15)
+
+fadeInRadialButton(validateBtn, 0.3)
+fadeInRadialButton(getKeyBtn, 0.35)
+fadeInRadialButton(discordBtn, 0.4)
+
+-- Auto-focus the input field after fade-in
+task.wait(0.6)
+input:CaptureFocus()
