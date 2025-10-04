@@ -1,0 +1,3728 @@
+--[[
+    THE MIST HUB - Ultra-Premium Key System GUI
+    Advanced Features: Fullscreen, Auto-Scaling, Cinematic Intro, Glassmorphism
+    Enhanced with Premium Constellation Aurora Background
+    FIXED: Proper resource cleanup to prevent FPS drops
+    UPDATED: Faster and brighter constellation effects
+    MODIFIED: Horizontal button layout at the bottom with centered text
+    ENHANCED: Professional notification system with animations and effects
+]]
+
+-- ================================================================= --
+-- PRE-FLIGHT CHECK
+-- ================================================================= --
+
+if JunkieProtected == nil then
+    local player = game:GetService("Players").LocalPlayer
+    if not player or not player:IsA("Player") then return end
+    local failsafeGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+    failsafeGui.Name = "MistHub_FAILSAFE"
+    failsafeGui.ResetOnSpawn = false
+    local background = Instance.new("Frame", failsafeGui)
+    background.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+    background.BorderColor3 = Color3.fromRGB(255, 60, 60)
+    background.BorderSizePixel = 2
+    background.Position = UDim2.fromScale(0.5, 0.5)
+    background.AnchorPoint = Vector2.new(0.5, 0.5)
+    background.Size = UDim2.new(0, 500, 0, 300)
+    Instance.new("UICorner", background).CornerRadius = UDim.new(0, 12)
+    local title = Instance.new("TextLabel", background)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.Text = "SDK INITIALIZATION FAILED"
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+    local message = Instance.new("TextLabel", background)
+    message.Size = UDim2.new(0.9, 0, 0.7, 0)
+    message.Position = UDim2.fromScale(0.05, 0.25)
+    message.BackgroundTransparency = 1
+    message.TextColor3 = Color3.fromRGB(240, 240, 240)
+    message.Font = Enum.Font.Gotham
+    message.TextSize = 18
+    message.TextWrapped = true
+    message.TextXAlignment = Enum.TextXAlignment.Left
+    message.Text = "The protection library was not found.\n\nPlease ensure you are using the official script version."
+    return
+end
+
+-- ================================================================= --
+-- SERVICES & CONFIG
+-- ================================================================= --
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+JunkieProtected.API_KEY = "f2896b56-b3d0-4428-8660-50264327d813"
+JunkieProtected.PROVIDER = "key_system"
+JunkieProtected.SERVICE_ID = "key system"
+
+local KEY_FILENAME = "MistHubKey.txt"
+local DISCORD_LINK = "https://discord.gg/themisthub"
+
+-- ================================================================= --
+-- UTILITY: RESPONSIVE SCALING
+-- ================================================================= --
+
+local function getScale()
+    local vpSize = camera.ViewportSize
+    local baseWidth = 1920
+    local baseHeight = 1080
+    return math.min(vpSize.X / baseWidth, vpSize.Y / baseHeight)
+end
+
+local function scaledSize(width, height)
+    local scale = getScale()
+    return UDim2.new(0, width * scale, 0, height * scale)
+end
+
+-- ================================================================= --
+-- RUN MAIN SCRIPT
+-- ================================================================= --
+
+local function RunMainScript()
+    local MainScriptGui = Instance.new("ScreenGui")
+    MainScriptGui.Name = "TheMistHubMain"
+    MainScriptGui.Parent = playerGui
+--- START OF MODIFIED FILE triggerbot gui sale (2).txt ---
+
+local GUI_BASE_WIDTH = 413.5 -- Base width before multiplier (original was ~285 * 1.1)
+local GUI_BASE_HEIGHT = 450  -- Base height before multiplier (original was 650)
+local GUI_SIZE_MULTIPLIER = 1.1 -- Overall size multiplier
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+local gameDefaultFOV = Camera.FieldOfView
+local Debris = game:GetService("Debris")
+local SoundService = game:GetService("SoundService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+local playerGui = player:WaitForChild("PlayerGui")
+local isAutoTargetEnabled = true; local lastShotTime = 0;
+local COOLDOWN = 0.5;
+local targetingFOV = 35;
+local currentDelayMode = "Blatant"
+local shootDelayMilliseconds = 0 
+local fovCircle = nil;
+local excludedPlayers = {};
+local isStealthMode = true
+local isESPEnabled = false;
+local isFOVChangerEnabled = false;
+local defaultScriptFOV = 115;
+local currentCameraFOV = gameDefaultFOV;
+local currentTool = nil
+local activatedConnection = nil
+local currentEffectiveCooldown = 0
+--- EDIT: Added a new state variable for the exclusion method.
+local excludeMethod = "Player List" -- Can be "Player List" or "Touch"
+local createBeautifulGUI
+local updateFOVCircle, updateAllExcludedLabelsVisibility, toggleESP, setSliderEnabled, setSliderValue, updateExcludedLabel, setupToolListener, calculateEffectiveCooldown, findTool
+local BulletRenderer_upvr = nil
+local successBulletRenderer, errBulletRenderer = pcall(function()
+	local modulesFolder = ReplicatedStorage:FindFirstChild("Modules")
+	if modulesFolder and modulesFolder:FindFirstChild("BulletRenderer") then
+		BulletRenderer_upvr = require(modulesFolder.BulletRenderer)
+	end
+end)
+--- EDIT: Added a new color for the dark red "Player List" exclude method switcher.
+local THEME = { Background = Color3.fromRGB(18, 18, 22), BackgroundSlightlyLighter = Color3.fromRGB(24, 24, 28), BackgroundSubtleVariant = Color3.fromRGB(21, 21, 25), Primary = Color3.fromRGB(35, 35, 45), PrimaryLighter = Color3.fromRGB(45, 45, 55), Secondary = Color3.fromRGB(55, 55, 65), Tertiary = Color3.fromRGB(75, 75, 85), Accent = Color3.fromRGB(0, 180, 180), AccentAlt = Color3.fromRGB(0, 140, 140), AccentDarkRed = Color3.fromRGB(180, 40, 50), Text = Color3.fromRGB(235, 235, 245), TextActive = Color3.fromRGB(255, 255, 255), TextDisabled = Color3.fromRGB(110, 110, 120), TextPlayerListNormal = Color3.fromRGB(240, 240, 250), Success = Color3.fromRGB(30, 200, 130), Error = Color3.fromRGB(250, 60, 80), ExcludedIcon = Color3.fromRGB(250, 60, 80), Tooltip = Color3.fromRGB(8, 8, 10), ButtonText = Color3.fromRGB(240, 240, 250), ButtonBackground = Color3.fromRGB(35, 35, 45), ButtonBackgroundHover = Color3.fromRGB(45, 45, 55), ButtonOutline = Color3.fromRGB(75, 75, 85), ButtonOutlineHover = Color3.fromRGB(0, 180, 180), SliderTrack = Color3.fromRGB(55, 55, 65), SliderTrackDisabled = Color3.fromRGB(35, 35, 45), SliderThumbBorder = Color3.fromRGB(18, 18, 22), SliderThumbBorderDisabled = Color3.fromRGB(35, 35, 45), ExcludeLabelBg = Color3.fromRGB(50, 10, 50), ExcludeLabelOutline = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamSemibold, FontTitle = Enum.Font.GothamBold, FontIcon = Enum.Font.SourceSansBold, FontRegular = Enum.Font.Gotham, TextSize = 11, SmallTextSize = 9, TitleSize = 12, IconSize = 14, SubtitleSize = 8, DisclaimerSize = 7, CornerRadius = 6, Padding = 6, ElementHeight = 24, SmallElementHeight = 20, SliderHeight = 4, SliderThumbSize = 12, PanelMinWidth = 190, PanelMaxWidth = 285, AnimationSpeed = 0.2, ScaleFactorHover = 1.02, ScaleFactorPress = 0.98, StrokeThickness = 1, ButtonOutlineThickness = 1.5, StrokeTransparency = 0.6, StrokeTransparencyHover = 0.4, RefExcludedColor = Color3.fromRGB(255, 0, 0), RefFOVCircleColor = Color3.fromRGB(128, 0, 128), TextColorFadeDuration = 0.25 }
+local TextColorTweenInfo = TweenInfo.new(THEME.TextColorFadeDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut); local DimTweenInfo = TweenInfo.new(THEME.AnimationSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out);
+local SwitchAnimationInfo = TweenInfo.new(0.25, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+local Storage = Instance.new("Folder", CoreGui) Storage.Name = "TheMist_Storage_DelaySwitcher_V24"
+local function cleanupOldStorage() for _, v in ipairs(CoreGui:GetChildren()) do if v:IsA("Folder") and v.Name:match("Storage") and v ~= Storage then v:Destroy() end end end; cleanupOldStorage()
+local GuiElements = {}
+local TooltipLabel = nil
+local mainFrame = nil
+local panelVisible = false -- Tracks the visibility state of the main frame
+function calculateEffectiveCooldown(toolInstance)
+	if not toolInstance or not toolInstance:IsA("Tool") then return COOLDOWN end
+	local gameCooldown = toolInstance:GetAttribute("Cooldown")
+	return (type(gameCooldown) == "number" and gameCooldown > 0) and gameCooldown or COOLDOWN
+end
+function createDrawingCircle()
+	if not pcall(function() local _ = Drawing.new end) then return nil end
+	local circle = Drawing.new("Circle")
+	circle.Thickness = 2
+	circle.Color = THEME.RefFOVCircleColor
+	circle.Transparency = 0.5
+	circle.Filled = false
+	circle.NumSides = 64
+	circle.Visible = false
+	return circle
+end
+function updateFOVCircle()
+	if not fovCircle then return end
+	local shouldBeVisible = isAutoTargetEnabled and (not isStealthMode or panelVisible)
+	fovCircle.Visible = shouldBeVisible
+	if not shouldBeVisible then return end
+	local screenSize = Camera.ViewportSize
+	if not screenSize or screenSize.X == 0 or screenSize.Y == 0 then fovCircle.Visible = false; return end
+	fovCircle.Position = screenSize / 2
+	local fovRad = math.rad(targetingFOV / 2)
+	local camFovRad = math.rad(Camera.FieldOfView / 2)
+	if fovRad <= 0 or camFovRad <= 0 or math.tan(camFovRad) == 0 then fovCircle.Visible = false; return end
+	local radius = (screenSize.Y / 2) * math.tan(fovRad) / math.tan(camFovRad)
+	fovCircle.Radius = math.max(0, radius)
+end
+function updateExcludedLabel(targetPlayer)
+	local char = targetPlayer.Character
+	if not char or not char:FindFirstChild("Head") then return end
+	local head = char.Head
+	local billboard = head:FindFirstChild("ExcludeLabel")
+	local isExcluded = excludedPlayers[targetPlayer]
+	if isExcluded then
+		if not billboard then
+			billboard = Instance.new("BillboardGui", head)
+			billboard.Name = "ExcludeLabel"
+			billboard.Size = UDim2.new(0, 85, 0, 22)
+			billboard.StudsOffset = Vector3.new(0, 2.4, 0)
+			billboard.AlwaysOnTop = true
+			billboard.LightInfluence = 0
+			billboard.ClipsDescendants = true
+			local textLabel = Instance.new("TextLabel", billboard)
+			textLabel.Size = UDim2.fromScale(1, 1)
+			textLabel.BackgroundColor3 = THEME.ExcludeLabelBg
+			textLabel.BackgroundTransparency = 0.2
+			textLabel.Font = Enum.Font.GothamSemibold
+			textLabel.Text = "EXCLUDED"
+			textLabel.TextColor3 = THEME.RefExcludedColor
+			textLabel.TextSize = 11
+			textLabel.TextScaled = false
+			textLabel.TextXAlignment = Enum.TextXAlignment.Center
+			textLabel.TextYAlignment = Enum.TextYAlignment.Center
+			local corner = Instance.new("UICorner", textLabel)
+			corner.CornerRadius = UDim.new(0, 3)
+			local stroke = Instance.new("UIStroke", textLabel)
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			stroke.Color = THEME.ExcludeLabelOutline
+			stroke.Thickness = 1
+			stroke.Transparency = 0.3
+		end
+		billboard.Enabled = (not isStealthMode or panelVisible)
+	else
+		if billboard then billboard:Destroy() end
+	end
+end
+function updateAllExcludedLabelsVisibility()
+	local desiredVisibility = (not isStealthMode or panelVisible)
+	for plr, _ in pairs(excludedPlayers) do
+		if plr and plr.Character and plr.Character:FindFirstChild("Head") then
+			local billboard = plr.Character.Head:FindFirstChild("ExcludeLabel")
+			if billboard then billboard.Enabled = desiredVisibility end
+		end
+	end
+end
+function applyHighlight(plr)
+	if plr == player then return end
+	local existing = Storage:FindFirstChild(plr.Name)
+	if existing then existing:Destroy() end
+	local highlight = Instance.new("Highlight", Storage)
+	highlight.Name = plr.Name
+	highlight.FillColor = plr.Team and plr.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Enabled = isESPEnabled
+	if plr.Character then highlight.Adornee = plr.Character end
+	plr.CharacterAdded:Connect(function(char) if highlight and highlight.Parent then highlight.Adornee = char end end)
+	plr.CharacterRemoving:Connect(function() if highlight and highlight.Parent then highlight.Adornee = nil end end)
+	return highlight
+end
+function removeHighlight(plr)
+	if plr then
+		local existing = Storage:FindFirstChild(plr.Name)
+		if existing then existing:Destroy() end
+	end
+end
+function toggleESP(enabled)
+	if isStealthMode and enabled == true then return end
+	isESPEnabled = enabled
+	if enabled then
+		for _, plr in pairs(Players:GetPlayers()) do
+			if plr ~= player then
+				local h = Storage:FindFirstChild(plr.Name)
+				if h then h.Enabled = true else applyHighlight(plr) end
+			end
+		end
+	else
+		for _, highlight in pairs(Storage:GetChildren()) do
+			if highlight:IsA("Highlight") then highlight.Enabled = false end
+		end
+	end
+	if GuiElements.espButton then
+		local newStateText = isESPEnabled and "ESP: ON" or "ESP: OFF"
+		local newTextColor = isESPEnabled and THEME.Success or THEME.Error
+		GuiElements.espButton.Text = newStateText
+		GuiElements.espButton:SetAttribute("CurrentTextColor", newTextColor)
+		TweenService:Create(GuiElements.espButton, TextColorTweenInfo, { TextColor3 = newTextColor }):Play()
+	end
+end
+function getShootEvent()
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	return remotes and remotes:FindFirstChild("ShootGun")
+end
+function findTool()
+	if character then for _, child in pairs(character:GetChildren()) do if child:IsA("Tool") then return child end end end
+	if backpack then for _, child in pairs(backpack:GetChildren()) do if child:IsA("Tool") then return child end end end
+	return nil
+end
+function isVisible(targetCharacter)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+	local startPos = character.HumanoidRootPart.Position
+	local priorityParts = {"HumanoidRootPart", "LeftHand", "RightHand", "LeftFoot", "RightFoot"}
+	local lastResortPart = "Head"
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = {character, Storage}
+	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	raycastParams.IgnoreWater = true
+	for _, partName in pairs(priorityParts) do
+		local targetPart = targetCharacter:FindFirstChild(partName)
+		if targetPart and targetPart:IsA("BasePart") then
+			local targetPos = targetPart.Position
+			local direction = targetPos - startPos
+			local distance = direction.Magnitude
+			if distance > 0.1 then
+				local rayResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
+				if rayResult and rayResult.Instance:IsDescendantOf(targetCharacter) then
+					return targetPart
+				end
+			end
+		end
+	end
+	local headPart = targetCharacter:FindFirstChild(lastResortPart)
+	if headPart and headPart:IsA("BasePart") then
+		local targetPos = headPart.Position
+		local direction = targetPos - startPos
+		local distance = direction.Magnitude
+		if distance > 0.1 then
+			local rayResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
+			if rayResult and rayResult.Instance:IsDescendantOf(targetCharacter) then
+				return headPart
+			end
+		end
+	end
+	return nil
+end
+function isWithinFOV(targetPart)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+	local cameraCFrame = Camera.CFrame
+	local targetPos = targetPart.Position
+	local cameraPos = cameraCFrame.Position
+	if (targetPos - cameraPos).Magnitude < 0.1 then return true end
+	local directionToTarget = (targetPos - cameraPos).Unit
+	local cameraLook = cameraCFrame.LookVector
+	local dot = math.clamp(directionToTarget:Dot(cameraLook), -1, 1)
+	local angle = math.deg(math.acos(dot))
+	return angle <= (targetingFOV / 2)
+end
+function setupToolListener(toolInstance)
+	if activatedConnection then activatedConnection:Disconnect(); activatedConnection = nil end
+	if currentTool and currentTool ~= toolInstance and not currentTool.Enabled then pcall(function() currentTool.Enabled = true end) end
+	currentTool = toolInstance
+	if toolInstance and toolInstance:IsA("Tool") then
+		local cooldownActive = currentEffectiveCooldown > 0 and (tick() - lastShotTime < currentEffectiveCooldown)
+		pcall(function() toolInstance.Enabled = not cooldownActive end)
+		activatedConnection = toolInstance.Activated:Connect(function()
+			lastShotTime = tick()
+			currentEffectiveCooldown = calculateEffectiveCooldown(toolInstance)
+			if toolInstance then pcall(function() toolInstance.Enabled = false end) end
+		end)
+	else
+		currentEffectiveCooldown = 0
+	end
+end
+function findClosestEnemy()
+	local maxDistance = 400
+	local closestEnemy = nil
+	local closestVisiblePart = nil
+	local closestDistance = maxDistance
+	local playerRootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if not playerRootPart then return nil, nil end
+	local playerRootPos = playerRootPart.Position
+	local myTeam = player.Team
+	if not myTeam then return nil, nil end
+	for _, targetPlayer in pairs(Players:GetPlayers()) do
+		if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and targetPlayer.Character:FindFirstChildOfClass("Humanoid") then
+			local targetChar = targetPlayer.Character
+			local targetRoot = targetChar.HumanoidRootPart
+			local targetHumanoid = targetChar:FindFirstChildOfClass("Humanoid")
+			local targetTeam = targetPlayer.Team
+			local isActualOpponent = false
+			if targetTeam then
+				if myTeam.Name == "Team1" and targetTeam.Name == "Team2" then isActualOpponent = true
+				elseif myTeam.Name == "Team2" and targetTeam.Name == "Team1" then isActualOpponent = true
+				end
+			end
+			if targetHumanoid.Health > 0 and not excludedPlayers[targetPlayer] and isActualOpponent then
+				local distance = (playerRootPos - targetRoot.Position).Magnitude
+				if distance < closestDistance then
+					local visiblePart = isVisible(targetChar)
+					if visiblePart and isWithinFOV(targetRoot) then
+						closestDistance = distance
+						closestEnemy = targetPlayer
+						closestVisiblePart = visiblePart
+					end
+				end
+			end
+		end
+	end
+	return closestEnemy, closestVisiblePart
+end
+function shoot()
+	if not isAutoTargetEnabled then return end
+	if not character or not character.Parent then return end
+	if not character:FindFirstChild("HumanoidRootPart") then return end
+	local tool = currentTool
+	if not tool or tool.Parent ~= character then
+		tool = findTool()
+		if tool and tool.Parent == character then setupToolListener(tool) else return end
+	end
+	local shootEvent = getShootEvent()
+	if not shootEvent then return end
+	local effectiveCooldown = calculateEffectiveCooldown(tool)
+	local currentTime = tick()
+	if currentTime - lastShotTime < effectiveCooldown then return end
+	local targetEnemy, visiblePart = findClosestEnemy()
+	if not visiblePart or not targetEnemy or not targetEnemy.Character then return end
+	lastShotTime = currentTime
+	currentEffectiveCooldown = effectiveCooldown
+	local toolAtDecision = tool
+	local fireSoundAtDecision = tool:FindFirstChild("Fire")
+	local bulletTypeAtDecision = tool:GetAttribute("BulletType")
+	local startPosAtDecision
+	local muzzleAttach = tool:FindFirstChild("Muzzle", true)
+	if muzzleAttach and muzzleAttach:IsA("Attachment") then
+		startPosAtDecision = muzzleAttach.WorldPosition
+	else
+		local handle = tool:FindFirstChild("Handle")
+		startPosAtDecision = (handle and handle:IsA("BasePart") and handle.Position) or character.HumanoidRootPart.Position
+	end
+	local visiblePartAtDecision = visiblePart
+	task.spawn(function()
+		if shootDelayMilliseconds > 0 then
+			task.wait(shootDelayMilliseconds / 1000)
+		end
+		if not toolAtDecision or toolAtDecision.Parent ~= character then return end
+		if not character or not character.Parent then return end
+		if not targetEnemy or not targetEnemy.Parent or not targetEnemy.Character or not targetEnemy.Character.Parent then return end
+		local targetHumanoid = targetEnemy.Character:FindFirstChildOfClass("Humanoid")
+		--- EDIT: Added a re-check for visibility after the delay.
+		local revalidatedPart = isVisible(targetEnemy.Character)
+		if not revalidatedPart or not targetHumanoid or targetHumanoid.Health <= 0 or excludedPlayers[targetEnemy] then return end
+		local fireArgs = {}
+		--- EDIT: This logic now applies to both Blatant and Normal modes. It gets the target's *current* position.
+		local actualHitPart = revalidatedPart
+		local actualImpactPoint = revalidatedPart.Position
+		local endPointForVisuals = actualImpactPoint
+		fireArgs = {startPosAtDecision, actualImpactPoint, actualHitPart, actualImpactPoint}
+		
+		local successFire, errFire = pcall(function()
+			shootEvent:FireServer(unpack(fireArgs))
+		end)
+		if successFire then
+			if fireSoundAtDecision and fireSoundAtDecision:IsA("Sound") then
+				pcall(function() fireSoundAtDecision:Play() end)
+			end
+			if BulletRenderer_upvr and muzzleAttach and endPointForVisuals then
+				pcall(BulletRenderer_upvr, startPosAtDecision, endPointForVisuals, bulletTypeAtDecision)
+			end
+			pcall(function() toolAtDecision:Activate() end)
+			task.wait()
+			if toolAtDecision and toolAtDecision.Parent == character then
+				pcall(function() toolAtDecision.Enabled = false end)
+			end
+		end
+	end)
+end
+function getTooltipLabel(parent)
+	if TooltipLabel and TooltipLabel.Parent then return TooltipLabel end
+	TooltipLabel = Instance.new("Frame", parent)
+	TooltipLabel.Name = "TooltipFrame"
+	TooltipLabel.Size = UDim2.new(0, 100, 0, 25)
+	TooltipLabel.BackgroundColor3 = THEME.Tooltip
+	TooltipLabel.BackgroundTransparency = 0.05
+	TooltipLabel.BorderSizePixel = 0
+	TooltipLabel.Position = UDim2.new(0, 0, 0, 0)
+	TooltipLabel.ZIndex = 100
+	TooltipLabel.Visible = false
+	TooltipLabel.ClipsDescendants = true
+	local corner = Instance.new("UICorner", TooltipLabel)
+	corner.CornerRadius = UDim.new(0, 3)
+	local padding = Instance.new("UIPadding", TooltipLabel)
+	padding.PaddingLeft = UDim.new(0, 5)
+	padding.PaddingRight = UDim.new(0, 5)
+	padding.PaddingTop = UDim.new(0, 3)
+	padding.PaddingBottom = UDim.new(0, 3)
+	local textLabel = Instance.new("TextLabel", TooltipLabel)
+	textLabel.Name = "TooltipText"
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextColor3 = THEME.TextDisabled
+	textLabel.Font = THEME.Font
+	textLabel.TextSize = THEME.SmallTextSize
+	textLabel.Text = "Tooltip"
+	textLabel.TextXAlignment = Enum.TextXAlignment.Center
+	textLabel.TextYAlignment = Enum.TextYAlignment.Center
+	textLabel.ZIndex = 101
+	textLabel.RichText = true
+	local textConstraint = Instance.new("UITextSizeConstraint", textLabel)
+	textConstraint.MaxTextSize = THEME.SmallTextSize
+	local function updateSize()
+		task.wait()
+		if not textLabel or not textLabel.Parent then return end
+		TooltipLabel.Size = UDim2.new(0, textLabel.TextBounds.X + 10, 0, textLabel.TextBounds.Y + 6)
+	end
+	textLabel:GetPropertyChangedSignal("Text"):Connect(updateSize)
+	updateSize()
+	return TooltipLabel
+end
+function showTooltip(guiObject, text)
+	if not TooltipLabel or not TooltipLabel.Parent then return end
+	local textLabel = TooltipLabel:FindFirstChild("TooltipText")
+	if not textLabel then return end
+	textLabel.Text = text
+	local mousePos = UserInputService:GetMouseLocation()
+	local guiInset = GuiService:GetGuiInset()
+	local offsetX, offsetY = 15, 10
+	TooltipLabel.Position = UDim2.new(0, mousePos.X + offsetX, 0, mousePos.Y - guiInset.Y + offsetY)
+	task.wait()
+	local viewportSize = Camera.ViewportSize
+	local absSize = TooltipLabel.AbsoluteSize
+	local currentPosX, currentPosY = TooltipLabel.Position.X.Offset, TooltipLabel.Position.Y.Offset
+	if currentPosX + absSize.X > viewportSize.X then currentPosX = mousePos.X - absSize.X - offsetX end
+	if currentPosY + absSize.Y > viewportSize.Y - guiInset.Y then currentPosY = mousePos.Y - absSize.Y - offsetY - guiInset.Y end
+	TooltipLabel.Position = UDim2.new(0, currentPosX, 0, currentPosY)
+	TooltipLabel.Visible = true
+end
+function hideTooltip()
+	if TooltipLabel then TooltipLabel.Visible = false end
+end
+function createStyledButton(parent, initialText, initialTextColor, position, size, tooltipText)
+	local button = Instance.new("TextButton", parent)
+	button.Size = size
+	button.Position = position
+	button.BackgroundColor3 = THEME.ButtonBackground
+	button.Font = THEME.Font
+	button.Text = initialText
+	button.TextColor3 = initialTextColor
+	button.TextSize = THEME.TextSize
+	button.AutoButtonColor = false
+	button.ClipsDescendants = true
+	local corner = Instance.new("UICorner", button)
+	corner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+	local stroke = Instance.new("UIStroke", button)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = THEME.ButtonOutline
+	stroke.Thickness = THEME.ButtonOutlineThickness
+	stroke.Transparency = THEME.StrokeTransparency
+	local uiScale = Instance.new("UIScale", button)
+	uiScale.Scale = 1
+	button:SetAttribute("Hovering", false)
+	button:SetAttribute("Tooltip", tooltipText or "")
+	button:SetAttribute("CurrentTextColor", initialTextColor)
+	local hoverTweenInfo = TweenInfo.new(THEME.AnimationSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local pressTweenInfo = TweenInfo.new(THEME.AnimationSpeed * 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local scaleTweenInfo = TweenInfo.new(THEME.AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	button.MouseEnter:Connect(function()
+		button:SetAttribute("Hovering", true)
+		TweenService:Create(stroke, hoverTweenInfo, { Color = THEME.ButtonOutlineHover }):Play()
+		TweenService:Create(button, hoverTweenInfo, { BackgroundColor3 = THEME.ButtonBackgroundHover }):Play()
+		TweenService:Create(uiScale, scaleTweenInfo, { Scale = THEME.ScaleFactorHover }):Play()
+		if button:GetAttribute("Tooltip") ~= "" then showTooltip(button, button:GetAttribute("Tooltip")) end
+	end)
+	button.MouseLeave:Connect(function()
+		button:SetAttribute("Hovering", false)
+		TweenService:Create(stroke, hoverTweenInfo, { Color = THEME.ButtonOutline }):Play()
+		TweenService:Create(button, hoverTweenInfo, { BackgroundColor3 = THEME.ButtonBackground }):Play()
+		TweenService:Create(uiScale, scaleTweenInfo, { Scale = 1 }):Play()
+		hideTooltip()
+	end)
+	button.MouseButton1Down:Connect(function()
+		TweenService:Create(uiScale, pressTweenInfo, { Scale = THEME.ScaleFactorPress }):Play()
+		hideTooltip()
+	end)
+	button.MouseButton1Up:Connect(function()
+		local targetScale = button:GetAttribute("Hovering") and THEME.ScaleFactorHover or 1
+		local targetBgColor = button:GetAttribute("Hovering") and THEME.ButtonBackgroundHover or THEME.ButtonBackground
+		local targetOutlineColor = button:GetAttribute("Hovering") and THEME.ButtonOutlineHover or THEME.ButtonOutline
+		TweenService:Create(uiScale, scaleTweenInfo, { Scale = targetScale }):Play()
+		TweenService:Create(button, hoverTweenInfo, { BackgroundColor3 = targetBgColor }):Play()
+		TweenService:Create(stroke, hoverTweenInfo, { Color = targetOutlineColor }):Play()
+		if button:GetAttribute("Hovering") and button:GetAttribute("Tooltip") ~= "" then showTooltip(button, button:GetAttribute("Tooltip")) end
+	end)
+	return button
+end
+function updateSliderStyle(sliderContainer, value, isEnabled)
+	if not sliderContainer or not sliderContainer:IsA("Frame") then return end
+	local valueLabel = sliderContainer:FindFirstChild("ValueLabel")
+	local sliderTrack = sliderContainer:FindFirstChild("SliderTrack")
+	if not valueLabel or not sliderTrack then return end
+	local sliderFill = sliderTrack:FindFirstChild("SliderFill")
+	local sliderThumb = sliderTrack:FindFirstChild("SliderThumb")
+	if not sliderFill or not sliderThumb then return end
+	local minValue = sliderContainer:GetAttribute("MinValue") or 0
+	local maxValue = sliderContainer:GetAttribute("MaxValue") or 100
+	local range = maxValue - minValue
+	if range <= 0 then range = 1 end
+	local percentage = math.clamp((value - minValue) / range, 0, 1)
+	sliderThumb.Position = UDim2.new(percentage, 0, 0.5, 0)
+	sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+	valueLabel.Text = tostring(math.floor(value))
+	local thumbColor = isEnabled and THEME.AccentAlt or THEME.Tertiary
+	local fillColor = isEnabled and THEME.Accent or THEME.Tertiary
+	local valueColor = isEnabled and THEME.Text or THEME.TextDisabled
+	local trackColor = isEnabled and THEME.SliderTrack or THEME.SliderTrackDisabled
+	local thumbBorderColor = isEnabled and THEME.SliderThumbBorder or THEME.SliderThumbBorderDisabled
+	sliderThumb.BackgroundColor3 = thumbColor
+	sliderFill.BackgroundColor3 = fillColor
+	valueLabel.TextColor3 = valueColor
+	sliderTrack.BackgroundColor3 = trackColor
+	sliderThumb.BorderColor3 = thumbBorderColor
+end
+function setSliderEnabled(sliderContainer, enabled)
+	if not sliderContainer or not sliderContainer:IsA("Frame") then return end
+	sliderContainer:SetAttribute("Enabled", enabled)
+	local valueLabel = sliderContainer:FindFirstChild("ValueLabel")
+	local currentVal = tonumber(valueLabel and valueLabel.Text or sliderContainer:GetAttribute("InitialValue") or 0)
+	updateSliderStyle(sliderContainer, currentVal, enabled)
+end
+function setSliderValue(sliderContainer, value)
+	if not sliderContainer or not sliderContainer:IsA("Frame") then return end
+	local minValue = sliderContainer:GetAttribute("MinValue") or 0
+	local maxValue = sliderContainer:GetAttribute("MaxValue") or 100
+	local clampedValue = math.clamp(value, minValue, maxValue)
+	local isEnabled = sliderContainer:GetAttribute("Enabled")
+	updateSliderStyle(sliderContainer, clampedValue, isEnabled)
+end
+function createSlider(parent, labelText, minValue, maxValue, initialValue, valueChangedCallback, tooltipText)
+	local container = Instance.new("Frame", parent)
+	container.Size = UDim2.new(1, 0, 0, THEME.ElementHeight * 1.5)
+	container.BackgroundTransparency = 1
+	container:SetAttribute("Tooltip", tooltipText or "")
+	container:SetAttribute("Enabled", true)
+	container:SetAttribute("MinValue", minValue)
+	container:SetAttribute("MaxValue", maxValue)
+	container:SetAttribute("InitialValue", initialValue)
+	local label = Instance.new("TextLabel", container)
+	label.Size = UDim2.new(0.7, 0, 0, THEME.SmallElementHeight)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = THEME.TextDisabled
+	label.Font = THEME.Font
+	label.TextSize = THEME.SmallTextSize
+	label.Text = labelText
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	local valueLabel = Instance.new("TextLabel", container)
+	valueLabel.Name = "ValueLabel"
+	valueLabel.Size = UDim2.new(0.3, 0, 0, THEME.SmallElementHeight)
+	valueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.TextColor3 = THEME.Text
+	valueLabel.Font = THEME.Font
+	valueLabel.TextSize = THEME.SmallTextSize
+	valueLabel.Text = tostring(math.floor(initialValue))
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	local sliderTrack = Instance.new("Frame", container)
+	sliderTrack.Name = "SliderTrack"
+	sliderTrack.Size = UDim2.new(1, 0, 0, THEME.SliderHeight + 6)
+	sliderTrack.Position = UDim2.new(0, 0, 1, -(THEME.SliderHeight + 6) - 4)
+	sliderTrack.BackgroundColor3 = THEME.SliderTrack
+	local trackCorner = Instance.new("UICorner", sliderTrack)
+	trackCorner.CornerRadius = UDim.new(0, (THEME.SliderHeight + 6) / 2)
+	local trackStroke = Instance.new("UIStroke", sliderTrack)
+	trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	trackStroke.Color = THEME.Tertiary
+	trackStroke.Thickness = 1
+	trackStroke.Transparency = 0.7
+	local sliderFill = Instance.new("Frame", sliderTrack)
+	sliderFill.Name = "SliderFill"
+	sliderFill.Size = UDim2.new(0,0,1,0)
+	sliderFill.BackgroundColor3 = THEME.Accent
+	sliderFill.BorderSizePixel = 0
+	local fillCorner = Instance.new("UICorner", sliderFill)
+	fillCorner.CornerRadius = UDim.new(0, (THEME.SliderHeight + 6) / 2)
+	local sliderThumb = Instance.new("Frame", sliderTrack)
+	sliderThumb.Name = "SliderThumb"
+	local thumbActualSize = THEME.SliderThumbSize
+	sliderThumb.Size = UDim2.fromOffset(thumbActualSize, thumbActualSize)
+	sliderThumb.AnchorPoint = Vector2.new(0.5, 0.5)
+	sliderThumb.Position = UDim2.new(0, 0, 0.5, 0)
+	sliderThumb.BackgroundColor3 = THEME.AccentAlt
+	sliderThumb.BorderSizePixel = 2
+	sliderThumb.BorderColor3 = THEME.SliderThumbBorder
+	local thumbCorner = Instance.new("UICorner", sliderThumb)
+	thumbCorner.CornerRadius = UDim.new(0.5, 0)
+	local thumbScale = Instance.new("UIScale", sliderThumb)
+	thumbScale.Scale = 1
+	local dragging = false
+	local inputChangedConn = nil
+	local inputEndedConn = nil
+	local thumbTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local function updateSlider(inputPos)
+		if not container:GetAttribute("Enabled") then return end
+		local relativePos = sliderTrack.AbsolutePosition
+		local trackSize = sliderTrack.AbsoluteSize
+		if trackSize.X <= 0 then return end
+		local thumbRadius = sliderThumb.AbsoluteSize.X / 2
+		local usableWidth = trackSize.X - (thumbRadius * 2)
+		if usableWidth <=0 then usableWidth = 1 end
+		local rawX = inputPos.X - relativePos.X - thumbRadius
+		local percentage = math.clamp(rawX / usableWidth, 0, 1)
+		local value = minValue + (maxValue - minValue) * percentage
+		local newValue = math.floor(value)
+		updateSliderStyle(container, newValue, true)
+		if valueChangedCallback then valueChangedCallback(newValue) end
+	end
+	updateSliderStyle(container, initialValue, true)
+	local function onInputBegan(input)
+		if not container:GetAttribute("Enabled") then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			TweenService:Create(thumbScale, thumbTweenInfo, {Scale = 1.1}):Play()
+			updateSlider(input.Position)
+			hideTooltip()
+			if inputChangedConn then inputChangedConn:Disconnect() end
+			if inputEndedConn then inputEndedConn:Disconnect() end
+			inputEndedConn = input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					TweenService:Create(thumbScale, thumbTweenInfo, {Scale = 1}):Play()
+					if inputChangedConn then inputChangedConn:Disconnect(); inputChangedConn = nil end
+					if inputEndedConn then inputEndedConn:Disconnect(); inputEndedConn = nil end
+				end
+			end)
+			inputChangedConn = RunService.RenderStepped:Connect(function()
+				if dragging then
+					updateSlider(UserInputService:GetMouseLocation())
+				else
+					if inputChangedConn then inputChangedConn:Disconnect(); inputChangedConn = nil end
+				end
+			end)
+		end
+	end
+	sliderTrack.InputBegan:Connect(onInputBegan)
+	sliderThumb.InputBegan:Connect(onInputBegan)
+	container.MouseEnter:Connect(function()
+		if container:GetAttribute("Tooltip") ~= "" and not dragging then
+			showTooltip(container, container:GetAttribute("Tooltip"))
+		end
+	end)
+	container.MouseLeave:Connect(function()
+		if not dragging then hideTooltip() end
+	end)
+	return container, valueLabel
+end
+local function toggleStealthMode()
+	isStealthMode = not isStealthMode
+	local targetTooltip = isStealthMode and "Switch to Normal Mode" or "Switch to Stealth Mode"
+	local targetStrokeColor = isStealthMode and THEME.Error or THEME.Accent
+	local targetCoreColor = isStealthMode and THEME.Error or THEME.Accent
+	local stealthBtnClickArea = GuiElements.stealthModeClickButton
+	local stealthBtnContainer = GuiElements.stealthModeStroke and GuiElements.stealthModeStroke.Parent
+	if stealthBtnClickArea then stealthBtnClickArea:SetAttribute("Tooltip", targetTooltip) end
+	if GuiElements.stealthModeStroke then TweenService:Create(GuiElements.stealthModeStroke, DimTweenInfo, { Color = targetStrokeColor }):Play() end
+	if GuiElements.stealthModeCore then TweenService:Create(GuiElements.stealthModeCore, DimTweenInfo, { BackgroundColor3 = targetCoreColor }):Play() end
+	if stealthBtnContainer then
+		local pulseScale = stealthBtnContainer:FindFirstChildWhichIsA("UIScale") or Instance.new("UIScale", stealthBtnContainer)
+		local pressTweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local releaseTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		local s1 = TweenService:Create(pulseScale, pressTweenInfo, {Scale = 0.9})
+		local s2 = TweenService:Create(pulseScale, releaseTweenInfo, {Scale = 1})
+		s1.Completed:Connect(function() s2:Play() end)
+		s1:Play()
+	end
+	local targetBgTrans = isStealthMode and 0.5 or 0
+	local targetTextTrans = isStealthMode and 0.3 or 0
+	local buttonsToFade = {GuiElements.fovChangerButton, GuiElements.resetFovButton, GuiElements.espButton}
+	for _, button in ipairs(buttonsToFade) do
+		if button then
+			TweenService:Create(button, DimTweenInfo, {BackgroundTransparency = targetBgTrans}):Play()
+			TweenService:Create(button, DimTweenInfo, {TextTransparency = targetTextTrans}):Play()
+		end
+	end
+	if isStealthMode then
+		isFOVChangerEnabled = false
+		Camera.FieldOfView = gameDefaultFOV
+		if GuiElements.fovChangerButton then
+			GuiElements.fovChangerButton.Text = "FOV: OFF"
+			GuiElements.fovChangerButton.TextColor3 = THEME.Error
+			GuiElements.fovChangerButton:SetAttribute("CurrentTextColor", THEME.Error)
+		end
+		if GuiElements.camFovSliderContainer then
+			setSliderEnabled(GuiElements.camFovSliderContainer, false)
+			setSliderValue(GuiElements.camFovSliderContainer, gameDefaultFOV)
+		end
+		if isESPEnabled then toggleESP(false) end
+	else
+		if GuiElements.fovChangerButton then
+			local initialFovTextColor = isFOVChangerEnabled and THEME.Success or THEME.Error
+			GuiElements.fovChangerButton.TextColor3 = initialFovTextColor
+			GuiElements.fovChangerButton:SetAttribute("CurrentTextColor", initialFovTextColor)
+			GuiElements.fovChangerButton.Text = isFOVChangerEnabled and "FOV: ON" or "FOV: OFF"
+		end
+		if GuiElements.camFovSliderContainer then
+			setSliderEnabled(GuiElements.camFovSliderContainer, isFOVChangerEnabled)
+			setSliderValue(GuiElements.camFovSliderContainer, isFOVChangerEnabled and currentCameraFOV or gameDefaultFOV)
+		end
+		if GuiElements.espButton then
+			local initialEspTextColor = isESPEnabled and THEME.Success or THEME.Error
+			GuiElements.espButton.TextColor3 = initialEspTextColor
+			GuiElements.espButton:SetAttribute("CurrentTextColor", initialEspTextColor)
+			GuiElements.espButton.Text = isESPEnabled and "ESP: ON" or "ESP: OFF"
+		end
+	end
+	updateFOVCircle()
+	updateAllExcludedLabelsVisibility()
+end
+function createBeautifulGUI() -- <--- START OF FUNCTION
+	local oldGui = playerGui:FindFirstChild("TheMistGUI_DelaySwitcher_V24")
+	if oldGui then oldGui:Destroy() end
+	local gui = Instance.new("ScreenGui", playerGui)
+	gui.Name = "TheMistGUI_DelaySwitcher_V24"
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.DisplayOrder = 999
+	gui.IgnoreGuiInset = true
+	local uiScale = Instance.new("UIScale", gui)
+	local BASE_SIZE = Vector2.new(GUI_BASE_WIDTH, GUI_BASE_HEIGHT)
+	local SCALE_RATIO = 0.65
+	local scaleConnection
+	local function updateScale()
+		local viewport = Camera.ViewportSize
+		if viewport.X == 0 or viewport.Y == 0 then return end
+		local shortestSide = math.min(viewport.X, viewport.Y)
+		local scaleFactor = (shortestSide * SCALE_RATIO) / BASE_SIZE.Y
+		uiScale.Scale = scaleFactor
+	end
+	updateScale()
+	scaleConnection = RunService.RenderStepped:Connect(updateScale)
+	mainFrame = Instance.new("Frame", gui)
+	mainFrame.Visible = false
+	mainFrame.AnchorPoint = Vector2.new(1, 0.5) 
+	mainFrame.Size = UDim2.fromScale(0, 0)
+	mainFrame.AutomaticSize = Enum.AutomaticSize.Y
+	mainFrame.BackgroundColor3 = THEME.Background
+	mainFrame.BackgroundTransparency = 0
+	mainFrame.BorderSizePixel = 0
+	mainFrame.ClipsDescendants = true
+	mainFrame.ZIndex = 5
+	mainFrame.Active = true
+	mainFrame.Draggable = false
+	local frameCorner = Instance.new("UICorner", mainFrame)
+	frameCorner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+	local sizeConstraint = Instance.new("UISizeConstraint", mainFrame)
+	sizeConstraint.MinSize = Vector2.new(THEME.PanelMinWidth * GUI_SIZE_MULTIPLIER, 210 * GUI_SIZE_MULTIPLIER)
+	sizeConstraint.MaxSize = Vector2.new(THEME.PanelMaxWidth * GUI_SIZE_MULTIPLIER, math.huge)
+	local bgGradient = Instance.new("UIGradient", mainFrame)
+	bgGradient.Rotation = 135
+	bgGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, THEME.BackgroundSlightlyLighter),
+		ColorSequenceKeypoint.new(0.3, THEME.Background),
+		ColorSequenceKeypoint.new(0.5, THEME.Primary),
+		ColorSequenceKeypoint.new(0.8, THEME.BackgroundSubtleVariant),
+		ColorSequenceKeypoint.new(1, THEME.BackgroundSlightlyLighter),
+	})
+	bgGradient.Offset = Vector2.new(-1, -1)
+	local padding = Instance.new("UIPadding", mainFrame)
+	padding.PaddingTop = UDim.new(0, THEME.Padding)
+	padding.PaddingBottom = UDim.new(0, THEME.Padding)
+	padding.PaddingLeft = UDim.new(0, THEME.Padding)
+	padding.PaddingRight = UDim.new(0, THEME.Padding)
+	local listLayout = Instance.new("UIListLayout", mainFrame)
+	listLayout.Padding = UDim.new(0, THEME.Padding)
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	listLayout.FillDirection = Enum.FillDirection.Vertical
+	getTooltipLabel(gui)
+	local titleFrame = Instance.new("Frame", mainFrame)
+	titleFrame.Size = UDim2.new(1, 0, 0, THEME.TitleSize + 2)
+	titleFrame.BackgroundTransparency = 1
+	titleFrame.LayoutOrder = 0
+	local titleLabel = Instance.new("TextLabel", titleFrame)
+	titleLabel.Size = UDim2.new(1, -25, 1, 0)
+	titleLabel.Position = UDim2.fromOffset(0, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "THE MIST"
+	titleLabel.TextColor3 = THEME.Accent
+	titleLabel.Font = THEME.FontTitle
+	titleLabel.TextSize = THEME.TitleSize
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local subtitleLabel = Instance.new("TextLabel", mainFrame)
+	subtitleLabel.Size = UDim2.new(1, -THEME.Padding*2, 0, THEME.SubtitleSize + 2)
+	subtitleLabel.Position = UDim2.fromOffset(THEME.Padding, 0)
+	subtitleLabel.BackgroundTransparency = 1
+	subtitleLabel.Text = "triggerbot-module v3.2"
+	subtitleLabel.TextColor3 = THEME.TextDisabled
+	subtitleLabel.Font = THEME.Font
+	subtitleLabel.TextSize = THEME.SubtitleSize
+	subtitleLabel.LayoutOrder = 1
+	subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local stealthContainer = Instance.new("Frame", titleFrame)
+	stealthContainer.Name = "StealthModeContainer"
+	stealthContainer.Size = UDim2.fromOffset(18, 18)
+	stealthContainer.AnchorPoint = Vector2.new(1, 0.5)
+	stealthContainer.Position = UDim2.new(1, -THEME.Padding, 0.5, 0)
+	stealthContainer.BackgroundColor3 = THEME.Primary
+	stealthContainer.BackgroundTransparency = 0.3
+	local scCorner = Instance.new("UICorner", stealthContainer)
+	scCorner.CornerRadius = UDim.new(0, 4)
+	local scStroke = Instance.new("UIStroke", stealthContainer)
+	scStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	scStroke.Color = isStealthMode and THEME.Error or THEME.Accent
+	scStroke.Thickness = 1.5
+	scStroke.Transparency = 0.2
+	GuiElements.stealthModeStroke = scStroke
+	local scCore = Instance.new("Frame", stealthContainer)
+	scCore.Name = "Core"
+	scCore.Size = UDim2.fromScale(0.5, 0.5)
+	scCore.AnchorPoint = Vector2.new(0.5, 0.5)
+	scCore.Position = UDim2.fromScale(0.5, 0.5)
+	scCore.BackgroundColor3 = isStealthMode and THEME.Error or THEME.Accent
+	scCore.BackgroundTransparency = 0.1
+	local scCoreCorner = Instance.new("UICorner", scCore)
+	scCoreCorner.CornerRadius = UDim.new(0.5, 0)
+	GuiElements.stealthModeCore = scCore
+	local stealthClickButton = Instance.new("TextButton", stealthContainer)
+	stealthClickButton.Name = "StealthClickArea"
+	stealthClickButton.Size = UDim2.fromScale(1, 1)
+	stealthClickButton.BackgroundTransparency = 1
+	stealthClickButton.Text = ""
+	stealthClickButton.ZIndex = 2
+	stealthClickButton:SetAttribute("Tooltip", isStealthMode and "Switch to Normal Mode" or "Switch to Stealth Mode")
+	GuiElements.stealthModeClickButton = stealthClickButton
+	local scScale = Instance.new("UIScale", stealthContainer)
+	scScale.Scale = 1
+	local hoverTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	stealthClickButton.MouseEnter:Connect(function()
+		TweenService:Create(scScale, hoverTweenInfo, {Scale = 1.1}):Play()
+		local currentStrokeColor = isStealthMode and THEME.Error or THEME.Accent
+		TweenService:Create(scStroke, hoverTweenInfo, {Color = currentStrokeColor:Lerp(Color3.new(1,1,1), 0.3), Transparency = 0}):Play()
+		if stealthClickButton:GetAttribute("Tooltip") ~= "" then showTooltip(stealthClickButton, stealthClickButton:GetAttribute("Tooltip")) end
+	end)
+	stealthClickButton.MouseLeave:Connect(function()
+		TweenService:Create(scScale, hoverTweenInfo, {Scale = 1}):Play()
+		local currentStrokeColor = isStealthMode and THEME.Error or THEME.Accent
+		TweenService:Create(scStroke, hoverTweenInfo, {Color = currentStrokeColor, Transparency = 0.2}):Play()
+		hideTooltip()
+	end)
+	stealthClickButton.MouseButton1Click:Connect(toggleStealthMode)
+	local mainControlsFrame = Instance.new("Frame", mainFrame)
+	mainControlsFrame.Size = UDim2.new(1, 0, 0, THEME.ElementHeight * 2 + THEME.Padding)
+	mainControlsFrame.BackgroundTransparency = 1
+	mainControlsFrame.LayoutOrder = 2
+	local mainControlsLayout = Instance.new("UIListLayout", mainControlsFrame)
+	mainControlsLayout.Padding = UDim.new(0, THEME.Padding)
+	mainControlsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	mainControlsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local initialAutoTargetTextColor = isAutoTargetEnabled and THEME.Success or THEME.Error
+	local initialEspTextColor = isESPEnabled and THEME.Success or THEME.Error
+	GuiElements.autoTargetButton = createStyledButton(mainControlsFrame, "TARGET: OFF", initialAutoTargetTextColor, UDim2.new(), UDim2.new(1,0,0,THEME.ElementHeight), "Toggle Auto Targeting")
+	GuiElements.espButton = createStyledButton(mainControlsFrame, "ESP: ON", initialEspTextColor, UDim2.new(), UDim2.new(1,0,0,THEME.ElementHeight), "Toggle Player ESP")
+	GuiElements.autoTargetButton.Text = isAutoTargetEnabled and "TARGET: ON" or "TARGET: OFF"
+	GuiElements.espButton.Text = isESPEnabled and "ESP: ON" or "ESP: OFF"
+	GuiElements.espButton.BackgroundTransparency = isStealthMode and 0.5 or 0
+	GuiElements.espButton.TextTransparency = isStealthMode and 0.3 or 0
+	local settingsFrame = Instance.new("Frame", mainFrame)
+	settingsFrame.Size = UDim2.new(1, 0, 0, 0)
+	settingsFrame.AutomaticSize = Enum.AutomaticSize.Y
+	settingsFrame.BackgroundTransparency = 1
+	settingsFrame.LayoutOrder = 4
+	local settingsLayout = Instance.new("UIListLayout", settingsFrame)
+	settingsLayout.Padding = UDim.new(0, THEME.Padding + 2)
+	settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	settingsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	settingsLayout.FillDirection = Enum.FillDirection.Vertical
+	local targetFovSliderContainer, targetFovValueLabel = createSlider(settingsFrame, "Target FOV", 0, 180, targetingFOV, function(value) targetingFOV = value; updateFOVCircle() end, "Aim assist Field of View (degrees)")
+	GuiElements.targetFovSliderContainer = targetFovSliderContainer
+	GuiElements.targetFovValueLabel = targetFovValueLabel
+	targetFovSliderContainer.LayoutOrder = 1
+	local delayModeSwitcherFrame = Instance.new("TextButton", settingsFrame)
+	delayModeSwitcherFrame.Name = "DelayModeSwitcherFrame"
+	delayModeSwitcherFrame.Size = UDim2.new(1, 0, 0, THEME.ElementHeight)
+	delayModeSwitcherFrame.BackgroundTransparency = 1
+	delayModeSwitcherFrame.Text = ""
+	delayModeSwitcherFrame.AutoButtonColor = false
+	delayModeSwitcherFrame.LayoutOrder = 2
+	delayModeSwitcherFrame:SetAttribute("Tooltip", "Click to switch delay mode")
+	local switchTrack = Instance.new("Frame", delayModeSwitcherFrame)
+	switchTrack.Name = "Track"
+	switchTrack.Size = UDim2.new(1, -20, 1, -4)
+	switchTrack.AnchorPoint = Vector2.new(0.5, 0.5)
+	switchTrack.Position = UDim2.fromScale(0.5, 0.5)
+	switchTrack.BackgroundColor3 = THEME.PrimaryLighter
+	switchTrack.BackgroundTransparency = 0.5
+	local trackCorner = Instance.new("UICorner", switchTrack)
+	trackCorner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+	local trackStroke = Instance.new("UIStroke", switchTrack)
+	trackStroke.Color = THEME.Secondary
+	trackStroke.Transparency = 0.6
+	trackStroke.Thickness = 1
+	local switchThumb = Instance.new("Frame", switchTrack)
+	switchThumb.Name = "Thumb"
+	switchThumb.Size = UDim2.new(0.5, -2, 1, -4)
+	switchThumb.Position = UDim2.fromScale(0, 0.5)
+	switchThumb.AnchorPoint = Vector2.new(0, 0.5)
+	switchThumb.BackgroundColor3 = THEME.Accent
+	switchThumb.BorderSizePixel = 0
+	local thumbCorner = Instance.new("UICorner", switchThumb)
+	thumbCorner.CornerRadius = UDim.new(0, THEME.CornerRadius - 2)
+	GuiElements.delaySwitcherThumb = switchThumb
+	local labelBlatant = Instance.new("TextLabel", switchTrack)
+	labelBlatant.Name = "LabelBlatant"
+	labelBlatant.Size = UDim2.new(0.5, 0, 1, 0)
+	labelBlatant.Position = UDim2.fromScale(0, 0.5)
+	labelBlatant.AnchorPoint = Vector2.new(0, 0.5)
+	labelBlatant.BackgroundTransparency = 1
+	labelBlatant.Font = THEME.Font
+	labelBlatant.Text = "Blatant"
+	labelBlatant.TextSize = THEME.SmallTextSize
+	labelBlatant.TextColor3 = THEME.TextDisabled
+	labelBlatant.TextXAlignment = Enum.TextXAlignment.Center
+	GuiElements.delayLabelBlatant = labelBlatant
+	local labelNormal = Instance.new("TextLabel", switchTrack)
+	labelNormal.Name = "LabelNormal"
+	labelNormal.Size = UDim2.new(0.5, 0, 1, 0)
+	labelNormal.Position = UDim2.fromScale(0.5, 0.5)
+	labelNormal.AnchorPoint = Vector2.new(0, 0.5)
+	labelNormal.BackgroundTransparency = 1
+	labelNormal.Font = THEME.Font
+	labelNormal.Text = "Normal"
+	labelNormal.TextSize = THEME.SmallTextSize
+	labelNormal.TextColor3 = THEME.Text
+	labelNormal.TextXAlignment = Enum.TextXAlignment.Center
+	GuiElements.delayLabelNormal = labelNormal
+	local function updateSwitcherVisuals(newMode, skipAnim)
+		local targetThumbPos = (newMode == "Blatant") and UDim2.fromScale(0, 0.5) or UDim2.fromScale(0.5, 0.5)
+		local blatantColor = (newMode == "Blatant") and THEME.TextActive or THEME.TextDisabled
+		local normalColor = (newMode == "Normal") and THEME.TextActive or THEME.TextDisabled
+		if skipAnim then
+			switchThumb.Position = targetThumbPos
+			labelBlatant.TextColor3 = blatantColor
+			labelNormal.TextColor3 = normalColor
+		else
+			TweenService:Create(switchThumb, SwitchAnimationInfo, { Position = targetThumbPos }):Play()
+			TweenService:Create(labelBlatant, TextColorTweenInfo, { TextColor3 = blatantColor }):Play()
+			TweenService:Create(labelNormal, TextColorTweenInfo, { TextColor3 = normalColor }):Play()
+		end
+	end
+	delayModeSwitcherFrame.MouseButton1Click:Connect(function()
+		hideTooltip()
+		if currentDelayMode == "Normal" then
+			currentDelayMode = "Blatant"
+			--- EDIT: Set delay to 0 for Blatant mode.
+			shootDelayMilliseconds = 0
+			updateSwitcherVisuals("Blatant")
+		else
+			currentDelayMode = "Normal"
+			--- EDIT: Set delay to 140 for Normal mode.
+			shootDelayMilliseconds = 140
+			updateSwitcherVisuals("Normal")
+		end
+	end)
+	delayModeSwitcherFrame.MouseEnter:Connect(function()
+		if delayModeSwitcherFrame:GetAttribute("Tooltip") ~= "" then
+			showTooltip(delayModeSwitcherFrame, delayModeSwitcherFrame:GetAttribute("Tooltip"))
+		end
+	end)
+	delayModeSwitcherFrame.MouseLeave:Connect(hideTooltip)
+	updateSwitcherVisuals(currentDelayMode, true)
+	--- EDIT: Start of new "Exclude By" switcher GUI.
+	local excludeMethodSwitcherTitle = Instance.new("TextLabel", settingsFrame)
+	excludeMethodSwitcherTitle.Size = UDim2.new(1, -THEME.Padding*2, 0, THEME.SmallTextSize)
+	excludeMethodSwitcherTitle.BackgroundTransparency = 1
+	excludeMethodSwitcherTitle.Font = THEME.Font
+	excludeMethodSwitcherTitle.Text = "EXCLUDE BY"
+	excludeMethodSwitcherTitle.TextColor3 = THEME.TextDisabled
+	excludeMethodSwitcherTitle.TextSize = THEME.SmallTextSize
+	excludeMethodSwitcherTitle.TextXAlignment = Enum.TextXAlignment.Center
+	excludeMethodSwitcherTitle.LayoutOrder = 3
+
+	local excludeMethodSwitcherFrame = Instance.new("TextButton", settingsFrame)
+	excludeMethodSwitcherFrame.Name = "ExcludeMethodSwitcherFrame"
+	excludeMethodSwitcherFrame.Size = UDim2.new(1, 0, 0, THEME.ElementHeight)
+	excludeMethodSwitcherFrame.BackgroundTransparency = 1
+	excludeMethodSwitcherFrame.Text = ""
+	excludeMethodSwitcherFrame.AutoButtonColor = false
+	excludeMethodSwitcherFrame.LayoutOrder = 4
+	excludeMethodSwitcherFrame:SetAttribute("Tooltip", "Click to switch exclusion method")
+
+	local exSwitchTrack = Instance.new("Frame", excludeMethodSwitcherFrame)
+	exSwitchTrack.Name = "Track"
+	exSwitchTrack.Size = UDim2.new(1, -20, 1, -4)
+	exSwitchTrack.AnchorPoint = Vector2.new(0.5, 0.5)
+	exSwitchTrack.Position = UDim2.fromScale(0.5, 0.5)
+	exSwitchTrack.BackgroundColor3 = THEME.PrimaryLighter
+	exSwitchTrack.BackgroundTransparency = 0.5
+	local exTrackCorner = Instance.new("UICorner", exSwitchTrack)
+	exTrackCorner.CornerRadius = UDim.new(0, THEME.CornerRadius)
+	local exTrackStroke = Instance.new("UIStroke", exSwitchTrack)
+	exTrackStroke.Color = THEME.Secondary
+	exTrackStroke.Transparency = 0.6
+	exTrackStroke.Thickness = 1
+
+	local exSwitchThumb = Instance.new("Frame", exSwitchTrack)
+	exSwitchThumb.Name = "Thumb"
+	exSwitchThumb.Size = UDim2.new(0.5, -2, 1, -4)
+	exSwitchThumb.Position = UDim2.fromScale(0, 0.5)
+	exSwitchThumb.AnchorPoint = Vector2.new(0, 0.5)
+	exSwitchThumb.BackgroundColor3 = THEME.AccentDarkRed -- Default to Player List color
+	exSwitchThumb.BorderSizePixel = 0
+	local exThumbCorner = Instance.new("UICorner", exSwitchThumb)
+	exThumbCorner.CornerRadius = UDim.new(0, THEME.CornerRadius - 2)
+	
+	local exLabelList = Instance.new("TextLabel", exSwitchTrack)
+	exLabelList.Name = "LabelPlayerList"
+	exLabelList.Size = UDim2.new(0.5, 0, 1, 0)
+	exLabelList.Position = UDim2.fromScale(0, 0.5)
+	exLabelList.AnchorPoint = Vector2.new(0, 0.5)
+	exLabelList.BackgroundTransparency = 1
+	exLabelList.Font = THEME.Font
+	exLabelList.Text = "Player List"
+	exLabelList.TextSize = THEME.SmallTextSize
+	exLabelList.TextColor3 = THEME.TextActive -- Default
+	exLabelList.TextXAlignment = Enum.TextXAlignment.Center
+	
+	local exLabelTouch = Instance.new("TextLabel", exSwitchTrack)
+	exLabelTouch.Name = "LabelTouch"
+	exLabelTouch.Size = UDim2.new(0.5, 0, 1, 0)
+	exLabelTouch.Position = UDim2.fromScale(0.5, 0.5)
+	exLabelTouch.AnchorPoint = Vector2.new(0, 0.5)
+	exLabelTouch.BackgroundTransparency = 1
+	exLabelTouch.Font = THEME.Font
+	exLabelTouch.Text = "Touch"
+	exLabelTouch.TextSize = THEME.SmallTextSize
+	exLabelTouch.TextColor3 = THEME.TextDisabled
+	exLabelTouch.TextXAlignment = Enum.TextXAlignment.Center
+
+	local function updateExcludeSwitcherVisuals(newMethod, skipAnim)
+		local targetThumbPos, thumbColor, listColor, touchColor
+		if newMethod == "Player List" then
+			targetThumbPos = UDim2.fromScale(0, 0.5)
+			thumbColor = THEME.AccentDarkRed
+			listColor = THEME.TextActive
+			touchColor = THEME.TextDisabled
+		else -- Touch
+			targetThumbPos = UDim2.fromScale(0.5, 0.5)
+			thumbColor = THEME.Success
+			listColor = THEME.TextDisabled
+			touchColor = THEME.TextActive
+		end
+
+		if skipAnim then
+			exSwitchThumb.Position = targetThumbPos
+			exSwitchThumb.BackgroundColor3 = thumbColor
+			exLabelList.TextColor3 = listColor
+			exLabelTouch.TextColor3 = touchColor
+		else
+			TweenService:Create(exSwitchThumb, SwitchAnimationInfo, { Position = targetThumbPos, BackgroundColor3 = thumbColor }):Play()
+			TweenService:Create(exLabelList, TextColorTweenInfo, { TextColor3 = listColor }):Play()
+			TweenService:Create(exLabelTouch, TextColorTweenInfo, { TextColor3 = touchColor }):Play()
+		end
+	end
+
+	excludeMethodSwitcherFrame.MouseButton1Click:Connect(function()
+		hideTooltip()
+		if excludeMethod == "Player List" then
+			excludeMethod = "Touch"
+		else
+			excludeMethod = "Player List"
+		end
+		updateExcludeSwitcherVisuals(excludeMethod)
+	end)
+	excludeMethodSwitcherFrame.MouseEnter:Connect(function()
+		if excludeMethodSwitcherFrame:GetAttribute("Tooltip") ~= "" then
+			showTooltip(excludeMethodSwitcherFrame, excludeMethodSwitcherFrame:GetAttribute("Tooltip"))
+		end
+	end)
+	excludeMethodSwitcherFrame.MouseLeave:Connect(hideTooltip)
+	updateExcludeSwitcherVisuals(excludeMethod, true)
+	--- EDIT: End of new "Exclude By" switcher GUI.
+	local camFovSliderContainer, camFovValueLabel = createSlider(settingsFrame, "Camera FOV", 30, 120, currentCameraFOV, function(value) if isFOVChangerEnabled then currentCameraFOV = value; Camera.FieldOfView = value; updateFOVCircle() end end, "Camera Field of View (degrees)")
+	GuiElements.camFovSliderContainer = camFovSliderContainer
+	GuiElements.camFovValueLabel = camFovValueLabel
+	camFovSliderContainer.LayoutOrder = 5
+	local fovControlFrame = Instance.new("Frame", settingsFrame)
+	fovControlFrame.Size = UDim2.new(1, 0, 0, THEME.SmallElementHeight * 2 + THEME.Padding)
+	fovControlFrame.BackgroundTransparency = 1
+	fovControlFrame.LayoutOrder = 6
+	local fovControlLayout = Instance.new("UIListLayout", fovControlFrame)
+	fovControlLayout.Padding = UDim.new(0, THEME.Padding)
+	fovControlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	fovControlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local initialFovTextColor = isFOVChangerEnabled and THEME.Success or THEME.Error
+	GuiElements.fovChangerButton = createStyledButton(fovControlFrame, "FOV: ON", initialFovTextColor, UDim2.new(), UDim2.new(1,0,0,THEME.SmallElementHeight), "Toggle Camera FOV Changer")
+	GuiElements.resetFovButton = createStyledButton(fovControlFrame, "RESET", THEME.ButtonText, UDim2.new(), UDim2.new(1,0,0,THEME.SmallElementHeight), "Reset Camera FOV to Game Default ("..tostring(math.floor(gameDefaultFOV))..")")
+	GuiElements.fovChangerButton.TextSize = THEME.SmallTextSize
+	GuiElements.resetFovButton.TextSize = THEME.SmallTextSize
+	GuiElements.fovChangerButton.Text = isFOVChangerEnabled and "FOV: ON" or "FOV: OFF"
+	GuiElements.fovChangerButton.BackgroundTransparency = isStealthMode and 0.5 or 0
+	GuiElements.fovChangerButton.TextTransparency = isStealthMode and 0.3 or 0
+	GuiElements.resetFovButton.BackgroundTransparency = isStealthMode and 0.5 or 0
+	GuiElements.resetFovButton.TextTransparency = isStealthMode and 0.3 or 0
+	setSliderEnabled(GuiElements.camFovSliderContainer, not isStealthMode and isFOVChangerEnabled)
+	local listTitle = Instance.new("TextLabel", mainFrame)
+	listTitle.Size = UDim2.new(1, -THEME.Padding*2, 0, THEME.SmallElementHeight)
+	listTitle.Position = UDim2.fromOffset(THEME.Padding, 0)
+	listTitle.BackgroundTransparency = 1
+	listTitle.Text = "NEARBY ENTITIES"
+	listTitle.TextColor3 = THEME.TextDisabled
+	listTitle.Font = THEME.Font
+	listTitle.TextSize = THEME.SmallTextSize
+	listTitle.TextXAlignment = Enum.TextXAlignment.Left
+	listTitle.LayoutOrder = 8
+	local playerListHeight = 90 * GUI_SIZE_MULTIPLIER
+	local playerListFrame = Instance.new("ScrollingFrame", mainFrame)
+	playerListFrame.Size = UDim2.new(1, 0, 0, playerListHeight)
+	playerListFrame.BackgroundTransparency = 1
+	playerListFrame.BackgroundColor3 = THEME.Background
+	playerListFrame.BorderSizePixel = 0
+	playerListFrame.LayoutOrder = 9
+	playerListFrame.ScrollBarThickness = 3
+	playerListFrame.ScrollBarImageColor3 = THEME.Accent
+	playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	playerListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	playerListFrame.ClipsDescendants = true
+	local listFrameCorner = Instance.new("UICorner", playerListFrame)
+	listFrameCorner.CornerRadius = UDim.new(0, THEME.CornerRadius / 2)
+	local listStroke = Instance.new("UIStroke", playerListFrame)
+	listStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	listStroke.Color = THEME.Tertiary
+	listStroke.Thickness = THEME.StrokeThickness
+	listStroke.Transparency = 0.6
+	local playerListLayout = Instance.new("UIListLayout", playerListFrame)
+	playerListLayout.Padding = UDim.new(0, 3)
+	playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	playerListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	playerListLayout.FillDirection = Enum.FillDirection.Vertical
+	local listPadding = Instance.new("UIPadding", playerListFrame)
+	listPadding.PaddingLeft = UDim.new(0, 2)
+	listPadding.PaddingRight = UDim.new(0, 2)
+	listPadding.PaddingTop = UDim.new(0, 2)
+	listPadding.PaddingBottom = UDim.new(0, 2)
+	GuiElements.playerListFrame = playerListFrame
+	GuiElements.playerListLayout = playerListLayout
+	local footerFrame = Instance.new("Frame", mainFrame)
+	footerFrame.Size = UDim2.new(1, 0, 0, 0)
+	footerFrame.AutomaticSize = Enum.AutomaticSize.Y
+	footerFrame.BackgroundTransparency = 1
+	footerFrame.LayoutOrder = 100
+	local footerLayout = Instance.new("UIListLayout", footerFrame)
+	footerLayout.Padding = UDim.new(0, 0)
+	footerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	footerLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	footerLayout.FillDirection = Enum.FillDirection.Vertical
+	local disclaimerLabel = Instance.new("TextLabel", footerFrame)
+	disclaimerLabel.Name = "DisclaimerLabel"
+	disclaimerLabel.Size = UDim2.new(1, -THEME.Padding*2, 0, THEME.DisclaimerSize + 4)
+	disclaimerLabel.BackgroundTransparency = 1
+	disclaimerLabel.Font = THEME.Font
+	disclaimerLabel.Text = "Module executed via THE MIST HUB."
+	disclaimerLabel.TextColor3 = THEME.TextDisabled
+	disclaimerLabel.TextSize = THEME.DisclaimerSize
+	disclaimerLabel.TextWrapped = false
+	disclaimerLabel.TextXAlignment = Enum.TextXAlignment.Center
+	disclaimerLabel.LayoutOrder = 1
+	local disclaimerPadding = Instance.new("UIPadding", disclaimerLabel)
+	disclaimerPadding.PaddingTop = UDim.new(0, 4)
+	
+	local function animateBackground()
+		while gui and gui.Parent and mainFrame and mainFrame.Parent do
+			local animSpeed = 30
+			local startOffset = Vector2.new(-1, -1)
+			local endOffset = Vector2.new(2, 2)
+			bgGradient.Offset = startOffset
+			local bgTween = TweenService:Create(bgGradient, TweenInfo.new(animSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Offset = endOffset})
+			bgTween:Play()
+			bgTween.Completed:Wait()
+			task.wait(0.1)
+		end
+	end
+	task.spawn(animateBackground)
+
+	local panelTween = nil
+	local slideTweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+
+	local invisibleToggleArea = Instance.new("TextButton", gui)
+	invisibleToggleArea.Name = "InvisibleToggleArea"
+	invisibleToggleArea.Size = UDim2.new(0, 80, 0, 80)
+	invisibleToggleArea.AnchorPoint = Vector2.new(0, 1)
+	invisibleToggleArea.Position = UDim2.new(0, 10, 1, -10)
+	invisibleToggleArea.BackgroundTransparency = 1
+	invisibleToggleArea.Text = ""
+	invisibleToggleArea.ZIndex = 10
+	
+	-- ===== VVVV  START OF FINAL REVAMPED SLIDING LOGIC VVVV =====
+	local hiddenPosition = UDim2.new(0, 0, 0.5, 0) -- Unbreakable hidden position.
+	
+	invisibleToggleArea.MouseButton1Click:Connect(function()
+		panelVisible = not panelVisible
+		hideTooltip()
+
+		if panelTween and panelTween.PlaybackState == Enum.PlaybackState.Playing then
+			panelTween:Cancel()
+		end
+		
+		if panelVisible then -- LOGIC FOR SHOWING
+			mainFrame.Visible = true
+			task.wait() -- Wait one frame for render.
+			
+			local targetPixelX = mainFrame.AbsoluteSize.X + 10
+			-- THE FIX: Divide by the current UIScale to counteract its effect.
+			local unscaledOffsetX = targetPixelX / uiScale.Scale
+			local visiblePosition = UDim2.new(0, unscaledOffsetX, 0.5, 0)
+			
+			mainFrame.Position = hiddenPosition
+			
+			panelTween = TweenService:Create(mainFrame, slideTweenInfo, {Position = visiblePosition})
+			panelTween:Play()
+		else -- LOGIC FOR HIDING
+			panelTween = TweenService:Create(mainFrame, slideTweenInfo, {Position = hiddenPosition})
+			panelTween.Completed:Connect(function(state)
+				if state == Enum.TweenStatus.Completed and not panelVisible then
+					mainFrame.Visible = false
+				end
+			end)
+			panelTween:Play()
+		end
+
+		updateFOVCircle()
+		updateAllExcludedLabelsVisibility()
+	end)
+	-- ===== ^^^^  END OF FINAL REVAMPED SLIDING LOGIC ^^^^ =====
+
+
+	local listHoverTweenInfo = TweenInfo.new(0.1)
+	--- EDIT: Reworked the entire player list function to support pinned players.
+	local function updatePlayerListGUI()
+		if not GuiElements.playerListFrame or not GuiElements.playerListFrame.Parent then return end
+		if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+		
+		local existingButtons = {}
+		for _, child in ipairs(GuiElements.playerListFrame:GetChildren()) do
+			if child:IsA("TextButton") and child.Name:match("_Entry$") then
+				local userIdAttr = child:GetAttribute("PlayerUserId")
+				if userIdAttr then existingButtons[userIdAttr] = child end
+			end
+		end
+
+		local pinnedEntries = {}
+		local nearbyEntries = {}
+		local playerRootPos = character.HumanoidRootPart.Position
+		local displayRange = 50
+
+		-- First, gather all pinned (excluded) players
+		for p, isExcluded in pairs(excludedPlayers) do
+			if isExcluded and p and p.Parent then
+				local dist = nil
+				if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+					dist = (playerRootPos - p.Character.HumanoidRootPart.Position).Magnitude
+				end
+				table.insert(pinnedEntries, {Player = p, Dist = dist, Pinned = true})
+			end
+		end
+
+		-- Then, gather nearby, non-excluded players
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= player and not excludedPlayers[p] and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+				local targetHumanoid = p.Character:FindFirstChildOfClass("Humanoid")
+				if targetHumanoid and targetHumanoid.Health > 0 then
+					local targetRootPos = p.Character.HumanoidRootPart.Position
+					local dist = (playerRootPos - targetRootPos).Magnitude
+					if dist <= displayRange then
+						table.insert(nearbyEntries, {Player = p, Dist = dist, Pinned = false})
+					end
+				end
+			end
+		end
+
+		table.sort(nearbyEntries, function(a, b) return a.Dist < b.Dist end)
+
+		-- Combine lists, pinned players first
+		local allEntries = {}
+		for _, entry in ipairs(pinnedEntries) do table.insert(allEntries, entry) end
+		for _, entry in ipairs(nearbyEntries) do table.insert(allEntries, entry) end
+
+		local playersInList = {}
+		for i, data in ipairs(allEntries) do
+			local p = data.Player
+			local userId = p.UserId
+			playersInList[userId] = true
+			local btn = existingButtons[userId]
+			
+			local distText
+			if data.Pinned then
+				distText = data.Dist and (data.Dist > displayRange) and "PINNED" or (data.Dist and (math.floor(data.Dist) .. "m") or "PINNED")
+			else
+				distText = math.floor(data.Dist) .. "m"
+			end
+
+			if btn then
+				btn.LayoutOrder = i
+				local distLabel = btn:FindFirstChild("DistLabel", true)
+				if distLabel then distLabel.Text = distText end
+				local isExcluded = excludedPlayers[p]
+				local nameLabel = btn:FindFirstChild("NameLabel", true)
+				if nameLabel then nameLabel.TextColor3 = isExcluded and THEME.RefExcludedColor or THEME.TextPlayerListNormal end
+				local excludeIcon = btn:FindFirstChild("ExcludeIcon", true)
+				if excludeIcon then
+					excludeIcon.Text = isExcluded and "✖" or "✔"
+					excludeIcon.TextColor3 = isExcluded and THEME.ExcludedIcon or THEME.Success
+					updateExcludedLabel(p)
+				end
+				existingButtons[userId] = nil
+			else
+				btn = Instance.new("TextButton")
+				btn.Name = p.Name .. "_Entry"
+				btn.Size = UDim2.new(1, 0, 0, THEME.SmallElementHeight)
+				btn.BackgroundColor3 = THEME.Primary
+				btn.BackgroundTransparency = 0.1
+				btn.Text = ""
+				btn.LayoutOrder = i
+				btn:SetAttribute("PlayerUserId", userId)
+				btn.Parent = GuiElements.playerListFrame
+				local btnCorner = Instance.new("UICorner", btn)
+				btnCorner.CornerRadius = UDim.new(0, THEME.CornerRadius / 2)
+				local itemStroke = Instance.new("UIStroke", btn)
+				itemStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				itemStroke.Color = THEME.Tertiary
+				itemStroke.Thickness = THEME.StrokeThickness
+				itemStroke.Transparency = 0.7
+				local itemPadding = Instance.new("UIPadding", btn)
+				itemPadding.PaddingLeft = UDim.new(0, 5)
+				itemPadding.PaddingRight = UDim.new(0, 5)
+				local excludeIcon = Instance.new("TextLabel", btn)
+				excludeIcon.Name = "ExcludeIcon"
+				excludeIcon.Size = UDim2.fromOffset(12, 12)
+				excludeIcon.Position=UDim2.fromScale(0,0.5)
+				excludeIcon.AnchorPoint=Vector2.new(0,0.5)
+				excludeIcon.BackgroundTransparency = 1
+				excludeIcon.Font = Enum.Font.SourceSansBold
+				local isExcluded = excludedPlayers[p]
+				excludeIcon.Text = isExcluded and "✖" or "✔"
+				excludeIcon.TextColor3 = isExcluded and THEME.ExcludedIcon or THEME.Success
+				excludeIcon.TextSize = 14
+				local teamColorIndicator = Instance.new("Frame", btn)
+				teamColorIndicator.Size = UDim2.fromOffset(5, 12)
+				teamColorIndicator.Position=UDim2.fromOffset(18,0)+UDim2.fromScale(0,0.5)
+				teamColorIndicator.AnchorPoint=Vector2.new(0,0.5)
+				teamColorIndicator.BackgroundColor3 = p.Team and p.Team.TeamColor.Color or Color3.fromRGB(90,90,90)
+				teamColorIndicator.BorderSizePixel = 0
+				local teamCorner = Instance.new("UICorner", teamColorIndicator)
+				teamCorner.CornerRadius = UDim.new(0, 2)
+				local nameLabel = Instance.new("TextLabel", btn)
+				nameLabel.Name = "NameLabel"
+				nameLabel.Size = UDim2.new(1, -55, 1, 0)
+				nameLabel.Position=UDim2.fromOffset(25,0)
+				nameLabel.BackgroundTransparency = 1
+				nameLabel.Font = THEME.Font
+				nameLabel.Text = p.Name
+				nameLabel.TextColor3 = isExcluded and THEME.RefExcludedColor or THEME.TextPlayerListNormal
+				nameLabel.TextSize = THEME.SmallTextSize
+				nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+				local distLabel = Instance.new("TextLabel", btn)
+				distLabel.Name = "DistLabel"
+				distLabel.Size = UDim2.new(0, 35, 1, 0) -- Increased width for "PINNED"
+				distLabel.AnchorPoint=Vector2.new(1,0.5)
+				distLabel.Position=UDim2.fromScale(1,0.5)
+				distLabel.BackgroundTransparency = 1
+				distLabel.Font = THEME.Font
+				distLabel.Text = distText
+				distLabel.TextColor3 = THEME.TextDisabled
+				distLabel.TextSize = THEME.SmallTextSize
+				distLabel.TextXAlignment = Enum.TextXAlignment.Right
+				updateExcludedLabel(p)
+				btn.MouseEnter:Connect(function()
+					TweenService:Create(btn, listHoverTweenInfo, {BackgroundTransparency = 0}):Play()
+				end)
+				btn.MouseLeave:Connect(function()
+					TweenService:Create(btn, listHoverTweenInfo, {BackgroundTransparency = 0.1}):Play()
+				end)
+				btn.MouseButton1Click:Connect(function()
+					excludedPlayers[p] = not excludedPlayers[p]
+					updateExcludedLabel(p)
+					-- No need to manually update visuals here, the next list refresh will handle it
+				end)
+			end
+		end
+
+		for _, oldBtn in pairs(existingButtons) do oldBtn:Destroy() end
+	end
+	GuiElements.autoTargetButton.MouseButton1Click:Connect(function()
+		isAutoTargetEnabled = not isAutoTargetEnabled
+		local newStateText = isAutoTargetEnabled and "TARGET: ON" or "TARGET: OFF"
+		local newTextColor = isAutoTargetEnabled and THEME.Success or THEME.Error
+		local button = GuiElements.autoTargetButton
+		button.Text = newStateText
+		button:SetAttribute("CurrentTextColor", newTextColor)
+		TweenService:Create(button, TextColorTweenInfo, { TextColor3 = newTextColor }):Play()
+		updateFOVCircle()
+	end)
+	GuiElements.espButton.MouseButton1Click:Connect(function()
+		if isStealthMode then return end
+		toggleESP(not isESPEnabled)
+	end)
+	GuiElements.fovChangerButton.MouseButton1Click:Connect(function()
+		if isStealthMode then return end
+		isFOVChangerEnabled = not isFOVChangerEnabled
+		local newStateText = isFOVChangerEnabled and "FOV: ON" or "FOV: OFF"
+		local newTextColor = isFOVChangerEnabled and THEME.Success or THEME.Error
+		local button = GuiElements.fovChangerButton
+		button.Text = newStateText
+		button:SetAttribute("CurrentTextColor", newTextColor)
+		TweenService:Create(button, TextColorTweenInfo, { TextColor3 = newTextColor }):Play()
+		setSliderEnabled(GuiElements.camFovSliderContainer, isFOVChangerEnabled)
+		if isFOVChangerEnabled then
+			Camera.FieldOfView = currentCameraFOV
+			setSliderValue(GuiElements.camFovSliderContainer, currentCameraFOV)
+		else
+			Camera.FieldOfView = gameDefaultFOV
+			setSliderValue(GuiElements.camFovSliderContainer, gameDefaultFOV)
+		end
+		updateFOVCircle()
+	end)
+	GuiElements.resetFovButton.MouseButton1Click:Connect(function()
+		if isStealthMode then return end
+		currentCameraFOV = gameDefaultFOV
+		Camera.FieldOfView = gameDefaultFOV
+		setSliderValue(GuiElements.camFovSliderContainer, gameDefaultFOV)
+		updateFOVCircle()
+		local button = GuiElements.resetFovButton
+		local originalTextColor = THEME.ButtonText
+		button:SetAttribute("CurrentTextColor", THEME.Accent)
+		TweenService:Create(button, TextColorTweenInfo, {TextColor3 = THEME.Accent}):Play()
+		task.delay(THEME.TextColorFadeDuration * 1.1, function()
+			if button and button.Parent then
+				button:SetAttribute("CurrentTextColor", originalTextColor)
+				TweenService:Create(button, TextColorTweenInfo, {TextColor3 = originalTextColor}):Play()
+			end
+		end)
+	end)
+	local lastUpdate = 0
+	local updateInterval = 0.5
+	RunService.Heartbeat:Connect(function()
+		local currentTime = tick()
+		if panelVisible and (currentTime - lastUpdate >= updateInterval) then
+			pcall(updatePlayerListGUI)
+			lastUpdate = currentTime
+		end
+	end)
+	local initialAutoTargetTextColor = isAutoTargetEnabled and THEME.Success or THEME.Error
+	GuiElements.autoTargetButton.TextColor3 = initialAutoTargetTextColor
+	GuiElements.autoTargetButton:SetAttribute("CurrentTextColor", initialAutoTargetTextColor)
+	local initialEspTextColor = isESPEnabled and THEME.Success or THEME.Error
+	GuiElements.espButton.TextColor3 = initialEspTextColor
+	GuiElements.espButton:SetAttribute("CurrentTextColor", initialEspTextColor)
+	local initialFovTextColor = isFOVChangerEnabled and THEME.Success or THEME.Error
+	GuiElements.fovChangerButton.TextColor3 = initialFovTextColor
+	GuiElements.fovChangerButton:SetAttribute("CurrentTextColor", initialFovTextColor)
+	GuiElements.resetFovButton.TextColor3 = THEME.ButtonText
+	GuiElements.resetFovButton:SetAttribute("CurrentTextColor", THEME.ButtonText)
+	setSliderEnabled(GuiElements.camFovSliderContainer, not isStealthMode and isFOVChangerEnabled)
+	setSliderValue(GuiElements.camFovSliderContainer, isFOVChangerEnabled and currentCameraFOV or gameDefaultFOV)
+	setSliderValue(GuiElements.targetFovSliderContainer, targetingFOV)
+	gui.Destroying:Connect(function()
+		if scaleConnection then
+			scaleConnection:Disconnect()
+		end
+	end)
+	return gui
+end
+
+local MainGui = nil
+local success, err = pcall(function()
+	MainGui = createBeautifulGUI()
+	fovCircle = createDrawingCircle()
+	Camera.FieldOfView = isFOVChangerEnabled and currentCameraFOV or gameDefaultFOV
+	toggleESP(isESPEnabled)
+	updateFOVCircle()
+	updateAllExcludedLabelsVisibility()
+	setupToolListener(findTool())
+	local tapRaycastParams = RaycastParams.new()
+	tapRaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	tapRaycastParams.IgnoreWater = true
+	local function handleTapExclude(input, gameProcessedEvent)
+		--- EDIT: This function is now controlled by the "Exclude By" switcher.
+		if excludeMethod ~= "Touch" then return end
+		if gameProcessedEvent then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			local unitRay = Camera:ScreenPointToRay(input.Position.X, input.Position.Y)
+			tapRaycastParams.FilterDescendantsInstances = {character, Storage, MainGui}
+			local rayResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 500, tapRaycastParams)
+			if rayResult and rayResult.Instance then
+				local hitPart = rayResult.Instance
+				local hitCharacter = hitPart:FindFirstAncestorWhichIsA("Model")
+				if hitCharacter and hitCharacter:FindFirstChildOfClass("Humanoid") then
+					local targetPlayer = Players:GetPlayerFromCharacter(hitCharacter)
+					if targetPlayer and targetPlayer ~= player then
+						excludedPlayers[targetPlayer] = not excludedPlayers[targetPlayer]
+						updateExcludedLabel(targetPlayer)
+						if isESPEnabled then
+							local h = Storage:FindFirstChild(targetPlayer.Name)
+							if h and h:IsA("Highlight") then
+								local originalColor = h.FillColor
+								local feedbackColor = excludedPlayers[targetPlayer] and THEME.Error or THEME.Success
+								h.FillColor = feedbackColor
+								h.FillTransparency = 0.3
+								task.delay(0.3, function()
+									if h and h.Parent then
+										h.FillColor = originalColor
+										h.FillTransparency = 0.5
+									end
+								end)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	UserInputService.InputBegan:Connect(handleTapExclude)
+	local function setupPlayerListeners(plr)
+		if plr == player then return end
+		task.spawn(function()
+			task.wait(0.1)
+			if not plr or not plr.Parent then return end
+			if excludedPlayers[plr] then updateExcludedLabel(plr) end
+			if isESPEnabled then applyHighlight(plr) end
+			plr.CharacterAdded:Connect(function(newChar)
+				task.wait(0.1)
+				if not plr or not plr.Parent then return end
+				if excludedPlayers[plr] then updateExcludedLabel(plr) end
+				if isESPEnabled then applyHighlight(plr) end
+			end)
+			plr.CharacterRemoving:Connect(function(oldChar)
+				local head = oldChar and oldChar:FindFirstChild("Head")
+				local existingLabel = head and head:FindFirstChild("ExcludeLabel")
+				if existingLabel then existingLabel:Destroy() end
+				local h = Storage:FindFirstChild(plr.Name)
+				if h then h.Adornee = nil end
+			end)
+		end)
+	end
+	Players.PlayerAdded:Connect(function(newPlayer)
+		if newPlayer ~= player then setupPlayerListeners(newPlayer) end
+	end)
+	Players.PlayerRemoving:Connect(function(leavingPlayer)
+		excludedPlayers[leavingPlayer] = nil
+		removeHighlight(leavingPlayer)
+	end)
+	for _, existingPlayer in pairs(Players:GetPlayers()) do
+		setupPlayerListeners(existingPlayer)
+	end
+	player.CharacterAdded:Connect(function(newCharacter)
+		character = newCharacter
+		task.wait(0.2)
+		backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack", 5)
+		setupToolListener(findTool())
+		for targetPlayer, isExcluded in pairs(excludedPlayers) do
+			if isExcluded then updateExcludedLabel(targetPlayer) end
+		end
+		newCharacter.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") then
+				setupToolListener(child)
+			end
+		end)
+		newCharacter.ChildRemoved:Connect(function(child)
+			if child == currentTool then
+				setupToolListener(nil)
+			end
+		end)
+	end)
+	if character then
+		character.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") then
+				setupToolListener(child)
+			end
+		end)
+		character.ChildRemoved:Connect(function(child)
+			if child == currentTool then
+				setupToolListener(nil)
+			end
+		end)
+	end
+	player.ChildAdded:Connect(function(child)
+		if child.Name == "Backpack" and child:IsA("Backpack") then
+			backpack = child
+		end
+	end)
+	RunService.RenderStepped:Connect(function(dt)
+		if not character or not character.Parent then
+			character = player.Character
+			if not character then return end
+		end
+		local currentlyEquippedTool = nil
+		if character then currentlyEquippedTool = character:FindFirstChildOfClass("Tool") end
+		if currentlyEquippedTool ~= currentTool then
+			setupToolListener(currentlyEquippedTool)
+		end
+		if currentTool and not currentTool.Enabled and currentEffectiveCooldown > 0 then
+			if tick() - lastShotTime >= currentEffectiveCooldown then
+				pcall(function() currentTool.Enabled = true end)
+				currentEffectiveCooldown = 0
+			end
+		end
+		pcall(updateFOVCircle)
+		pcall(shoot)
+	end)
+end)
+if not success then
+	warn("THE MIST Triggerbot Module (Delay Switcher) failed to initialize:", err)
+	if MainGui and MainGui.Parent then MainGui:Destroy() end
+	if Storage and Storage.Parent then Storage:Destroy() end
+	if fovCircle and fovCircle.Destroy then fovCircle:Destroy(); fovCircle = nil end
+	if activatedConnection then activatedConnection:Disconnect() end
+end
+if script and script:IsA("Script") then
+	script.Destroying:Connect(function()
+		if currentTool and currentTool.Parent and not currentTool.Enabled then
+			pcall(function() currentTool.Enabled = true end)
+		end
+		if activatedConnection then activatedConnection:Disconnect(); activatedConnection = nil end
+		if MainGui and MainGui.Parent then MainGui:Destroy() end
+		if Storage and Storage.Parent then Storage:Destroy() end
+		if fovCircle and fovCircle.Destroy then fovCircle:Destroy(); fovCircle = nil end
+	end)
+end
+
+end
+
+-- ================================================================= --
+-- CHECK SAVED KEY
+-- ================================================================= --
+
+if isfile and isfile(KEY_FILENAME) then
+    local savedKey = readfile(KEY_FILENAME)
+    if savedKey and savedKey ~= "" then
+        local result = JunkieProtected.ValidateKey({ Key = savedKey })
+        if result == "valid" then
+            RunMainScript()
+            return
+        end
+    end
+end
+
+local keylessCheck = JunkieProtected.IsKeylessMode()
+if keylessCheck and keylessCheck.keyless_mode then
+    RunMainScript()
+    return
+end
+
+-- ================================================================= --
+-- CREATE GUI (FULLSCREEN)
+-- ================================================================= --
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TheMistHubUltra"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
+gui.Parent = playerGui
+
+-- Resource cleanup management
+local connections = {}
+local tweens = {}
+local animationLoops = {}
+
+local function cleanup()
+    -- Disconnect all connections
+    for _, conn in pairs(connections) do
+        if conn then
+            conn:Disconnect()
+        end
+    end
+    connections = {}
+    
+    -- Cancel all tweens
+    for _, tween in pairs(tweens) do
+        if tween then
+            tween:Cancel()
+        end
+    end
+    tweens = {}
+    
+    -- Stop all animation loops
+    for _, loop in pairs(animationLoops) do
+        loop = false
+    end
+    animationLoops = {}
+    
+    -- Destroy GUI
+    if gui then
+        gui:Destroy()
+        gui = nil
+    end
+end
+
+-- ================================================================= --
+-- PREMIUM DARK CONSTELLATION AURORA BACKGROUND
+-- ================================================================= --
+
+local bgFrame = Instance.new("Frame")
+bgFrame.Name = "Background"
+bgFrame.Size = UDim2.new(1, 0, 1, 0)
+bgFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 15)
+bgFrame.BorderSizePixel = 0
+bgFrame.ZIndex = 1
+bgFrame.BackgroundTransparency = 0
+bgFrame.Parent = gui
+
+-- Create multiple gradient layers for dark aurora effect
+local auroraLayers = {}
+for i = 1, 3 do
+    local aurora = Instance.new("Frame")
+    aurora.Name = "Aurora" .. i
+    aurora.Size = UDim2.new(1.5, 0, 1.5, 0)
+    aurora.Position = UDim2.fromScale(-0.25, -0.25)
+    aurora.BackgroundTransparency = 0.85 - (i * 0.1)
+    aurora.BorderSizePixel = 0
+    aurora.ZIndex = 1 + i
+    aurora.Parent = bgFrame
+    
+    local gradient = Instance.new("UIGradient")
+    -- Dark grayscale colors instead of colorful ones
+    local colors = {
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 60, 60))
+        },
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 30, 30)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 50))
+        },
+        ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 40))
+        }
+    }
+    gradient.Color = colors[i]
+    gradient.Rotation = 45 + (i * 30)
+    gradient.Parent = aurora
+    
+    table.insert(auroraLayers, {frame = aurora, gradient = gradient, baseRotation = gradient.Rotation})
+end
+
+-- Animate aurora layers with proper cleanup
+animationLoops.aurora = true
+task.spawn(function()
+    while animationLoops.aurora and bgFrame and bgFrame.Parent do
+        for i, layer in ipairs(auroraLayers) do
+            if layer.frame and layer.frame.Parent then
+                layer.gradient.Rotation = layer.baseRotation + math.sin(tick() * (0.2 + i * 0.1)) * 30
+                layer.frame.Position = UDim2.new(
+                    -0.25 + math.sin(tick() * (0.1 + i * 0.05)) * 0.05,
+                    0,
+                    -0.25 + math.cos(tick() * (0.1 + i * 0.05)) * 0.05,
+                    0
+                )
+            end
+        end
+        task.wait(0.03)
+    end
+end)
+
+-- Constellation nodes system
+local constellationContainer = Instance.new("Frame")
+constellationContainer.Name = "Constellation"
+constellationContainer.Size = UDim2.new(1, 0, 1, 0)
+constellationContainer.BackgroundTransparency = 1
+constellationContainer.ZIndex = 2
+constellationContainer.Parent = bgFrame
+
+local nodes = {}
+local connections = {}
+local mousePos = Vector2.new(0, 0)
+
+-- Create constellation nodes
+for i = 1, 25 do
+    local node = Instance.new("Frame")
+    node.Size = scaledSize(4, 4)
+    node.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    node.AnchorPoint = Vector2.new(0.5, 0.5)
+    node.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+    node.BackgroundTransparency = 0.1 -- Made more visible
+    node.BorderSizePixel = 0
+    node.ZIndex = 3
+    node.Parent = constellationContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = node
+    
+    local glow = Instance.new("Frame")
+    glow.Size = scaledSize(12, 12)
+    glow.Position = UDim2.fromScale(0.5, 0.5)
+    glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    glow.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+    glow.BackgroundTransparency = 0.5 -- Made glow more visible
+    glow.BorderSizePixel = 0
+    glow.ZIndex = 2
+    glow.Parent = node
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(1, 0)
+    glowCorner.Parent = glow
+    
+    -- Increased velocity for faster movement
+    table.insert(nodes, {
+        frame = node,
+        glow = glow,
+        vx = (math.random() - 0.5) * 0.0012, -- Increased from 0.0008
+        vy = (math.random() - 0.5) * 0.0012, -- Increased from 0.0008
+        baseHue = 0.55 + math.random() * 0.1
+    })
+end
+
+-- Create connection lines
+local function createConnection(node1, node2)
+    local connection = Instance.new("Frame")
+    connection.Name = "Connection"
+    connection.BorderSizePixel = 0
+    connection.BackgroundTransparency = 0.4 -- Made lines more visible
+    connection.ZIndex = 2
+    connection.Parent = constellationContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 1)
+    corner.Parent = connection
+    
+    return {
+        frame = connection,
+        node1 = node1,
+        node2 = node2
+    }
+end
+
+-- Update constellation system with proper cleanup
+animationLoops.constellation = true
+connections.constellation = RunService.Heartbeat:Connect(function()
+    if not animationLoops.constellation then return end
+    
+    -- Update node positions
+    for _, node in ipairs(nodes) do
+        if node.frame and node.frame.Parent then
+            local pos = node.frame.Position
+            local newX = pos.X.Scale + node.vx
+            local newY = pos.Y.Scale + node.vy
+            
+            if newX < 0 or newX > 1 then node.vx = -node.vx end
+            if newY < 0 or newY > 1 then node.vy = -node.vy end
+            
+            node.frame.Position = UDim2.new(
+                math.clamp(newX, 0, 1), 0,
+                math.clamp(newY, 0, 1), 0
+            )
+            
+            -- Update glow based on mouse proximity
+            local nodeScreenPos = Vector2.new(
+                node.frame.AbsolutePosition.X + node.frame.AbsoluteSize.X / 2,
+                node.frame.AbsolutePosition.Y + node.frame.AbsoluteSize.Y / 2
+            )
+            local distance = (nodeScreenPos - mousePos).Magnitude
+            local maxDistance = 200
+            local intensity = math.max(0, 1 - distance / maxDistance)
+            
+            node.glow.BackgroundTransparency = 0.5 - intensity * 0.3 -- Made glow brighter
+            node.glow.Size = scaledSize(12 + intensity * 10, 12 + intensity * 10) -- Increased glow size
+            
+            -- Pulse effect
+            local pulse = math.sin(tick() * 2 + node.baseHue * 10) * 0.2 + 0.8
+            node.frame.BackgroundTransparency = 0.1 - intensity * 0.1 + (1 - pulse) * 0.1 -- Made nodes brighter
+        end
+    end
+    
+    -- Update connections
+    -- Clear old connections
+    for _, conn in ipairs(connections) do
+        if conn.frame then
+            conn.frame:Destroy()
+        end
+    end
+    connections = {}
+    
+    -- Create new connections for nearby nodes
+    for i, node1 in ipairs(nodes) do
+        for j, node2 in ipairs(nodes) do
+            if i < j then
+                local pos1 = node1.frame.Position
+                local pos2 = node2.frame.Position
+                local distance = math.sqrt(
+                    (pos1.X.Scale - pos2.X.Scale) ^ 2 + 
+                    (pos1.Y.Scale - pos2.Y.Scale) ^ 2
+                )
+                
+                if distance < 0.25 then -- Increased connection distance
+                    local connection = createConnection(node1, node2)
+                    
+                    -- Calculate connection properties
+                    local centerX = (pos1.X.Scale + pos2.X.Scale) / 2
+                    local centerY = (pos1.Y.Scale + pos2.Y.Scale) / 2
+                    local angle = math.atan2(pos2.Y.Scale - pos1.Y.Scale, pos2.X.Scale - pos1.X.Scale)
+                    local length = distance * math.min(camera.ViewportSize.X, camera.ViewportSize.Y)
+                    
+                    connection.frame.Position = UDim2.new(centerX, 0, centerY, 0)
+                    connection.frame.Size = UDim2.new(0, length, 0, 1)
+                    connection.frame.Rotation = math.deg(angle)
+                    connection.frame.BackgroundTransparency = 0.4 + distance * 1.5 -- Made lines brighter
+                    
+                    table.insert(connections, connection)
+                end
+            end
+        end
+    end
+end)
+
+-- Track mouse position for interaction with proper cleanup
+connections.mouse = UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        mousePos = Vector2.new(input.Position.X, input.Position.Y)
+    end
+end)
+
+-- ================================================================= --
+-- ENHANCED PARTICLE SYSTEM
+-- ================================================================= --
+
+local particleContainer = Instance.new("Frame")
+particleContainer.Name = "Particles"
+particleContainer.Size = UDim2.new(1, 0, 1, 0)
+particleContainer.BackgroundTransparency = 1
+particleContainer.ZIndex = 3
+particleContainer.Parent = bgFrame
+
+local particles = {}
+
+for i = 1, 50 do
+    local particle = Instance.new("Frame")
+    local size = math.random(1, 3)
+    particle.Size = scaledSize(size, size)
+    particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    particle.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+    particle.BackgroundTransparency = math.random(40, 70) / 100 -- Made more visible
+    particle.BorderSizePixel = 0
+    particle.Parent = particleContainer
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = particle
+
+    table.insert(particles, {
+        frame = particle,
+        vx = (math.random() - 0.5) * 0.001,
+        vy = (math.random() - 0.5) * 0.001,
+        hue = 0.55 + math.random() * 0.2
+    })
+end
+
+-- Update particles with proper cleanup
+animationLoops.particles = true
+connections.particles = RunService.Heartbeat:Connect(function()
+    if not animationLoops.particles then return end
+    
+    for _, p in ipairs(particles) do
+        if p.frame and p.frame.Parent then
+            local pos = p.frame.Position
+            local newX = pos.X.Scale + p.vx
+            local newY = pos.Y.Scale + p.vy
+
+            if newX < 0 or newX > 1 then p.vx = -p.vx end
+            if newY < 0 or newY > 1 then p.vy = -p.vy end
+
+            p.frame.Position = UDim2.new(
+                math.clamp(newX, 0, 1), 0,
+                math.clamp(newY, 0, 1), 0
+            )
+            
+            -- Keep gray color instead of shifting hue
+            local grayValue = 150 + math.sin(tick() * 0.5 + p.hue * 10) * 50 -- Made brighter
+            p.frame.BackgroundColor3 = Color3.fromRGB(grayValue, grayValue, grayValue)
+        end
+    end
+end)
+
+-- ================================================================= --
+-- MOUSE TRAIL EFFECT
+-- ================================================================= --
+
+connections.mouseTrail = UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mousePos = UserInputService:GetMouseLocation()
+        
+        local trail = Instance.new("Frame")
+        trail.Size = scaledSize(8, 8)
+        trail.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y)
+        trail.AnchorPoint = Vector2.new(0.5, 0.5)
+        trail.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+        trail.BackgroundTransparency = 0.3 -- Made more visible
+        trail.BorderSizePixel = 0
+        trail.ZIndex = 4
+        trail.Parent = particleContainer
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = trail
+        
+        local tween = TweenService:Create(trail, TweenInfo.new(0.5), {
+            BackgroundTransparency = 1,
+            Size = scaledSize(20, 20)
+        })
+        tween:Play()
+        table.insert(tweens, tween)
+        
+        task.delay(0.5, function()
+            trail:Destroy()
+        end)
+    end
+end)
+
+-- ================================================================= --
+-- CINEMATIC INTRO SEQUENCE
+-- ================================================================= --
+
+local introContainer = Instance.new("Frame")
+introContainer.Name = "IntroSequence"
+introContainer.Size = UDim2.new(1, 0, 1, 0)
+introContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+introContainer.BorderSizePixel = 0
+introContainer.ZIndex = 150
+introContainer.Parent = gui
+
+local introLogo = Instance.new("TextLabel")
+introLogo.Size = scaledSize(800, 150)
+introLogo.Position = UDim2.fromScale(0.5, 0.5)
+introLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+introLogo.Text = "THE MIST HUB"
+introLogo.TextSize = 72 * getScale()
+introLogo.Font = Enum.Font.GothamBold
+introLogo.TextColor3 = Color3.fromRGB(255, 255, 255)
+introLogo.BackgroundTransparency = 1
+introLogo.TextTransparency = 1
+introLogo.TextStrokeTransparency = 0.3
+introLogo.ZIndex = 151
+introLogo.Parent = introContainer
+
+local logoGradient = Instance.new("UIGradient")
+logoGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)), -- Made brighter
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(220, 220, 220)), -- Made brighter
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200)) -- Made brighter
+}
+logoGradient.Parent = introLogo
+
+local loadingContainer = Instance.new("Frame")
+loadingContainer.Size = scaledSize(400, 6)
+loadingContainer.Position = UDim2.new(0.5, 0, 0.5, 100 * getScale())
+loadingContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+loadingContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+loadingContainer.BorderSizePixel = 0
+loadingContainer.BackgroundTransparency = 1
+loadingContainer.ZIndex = 151
+loadingContainer.Parent = introContainer
+
+local loadingBar = Instance.new("Frame")
+loadingBar.Size = UDim2.new(0, 0, 1, 0)
+loadingBar.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+loadingBar.BorderSizePixel = 0
+loadingBar.ZIndex = 152
+loadingBar.Parent = loadingContainer
+
+local barGradient = Instance.new("UIGradient")
+barGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)), -- Made brighter
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220)) -- Made brighter
+}
+barGradient.Parent = loadingBar
+
+local loadingText = Instance.new("TextLabel")
+loadingText.Size = scaledSize(400, 30)
+loadingText.Position = UDim2.new(0.5, 0, 0.5, 130 * getScale())
+loadingText.AnchorPoint = Vector2.new(0.5, 0.5)
+loadingText.Text = "Initializing..."
+loadingText.TextSize = 16 * getScale()
+loadingText.Font = Enum.Font.Gotham
+loadingText.TextColor3 = Color3.fromRGB(180, 180, 180)
+loadingText.BackgroundTransparency = 1
+loadingText.TextTransparency = 1
+loadingText.ZIndex = 151
+loadingText.Parent = introContainer
+
+local percentage = Instance.new("TextLabel")
+percentage.Size = scaledSize(100, 40)
+percentage.Position = UDim2.new(0.5, 0, 0.5, 160 * getScale())
+percentage.AnchorPoint = Vector2.new(0.5, 0.5)
+percentage.Text = "0%"
+percentage.TextSize = 24 * getScale()
+percentage.Font = Enum.Font.GothamBold
+percentage.TextColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+percentage.BackgroundTransparency = 1
+percentage.TextTransparency = 1
+percentage.ZIndex = 151
+percentage.Parent = introContainer
+
+-- ENHANCED INTRO SEQUENCE
+task.spawn(function()
+    -- Fade in background first
+    local bgTween = TweenService:Create(bgFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0
+    })
+    bgTween:Play()
+    table.insert(tweens, bgTween)
+    
+    task.wait(0.2)
+    
+    -- Then fade in logo
+    local logoTween = TweenService:Create(introLogo, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    })
+    logoTween:Play()
+    table.insert(tweens, logoTween)
+    
+    task.wait(0.3)
+    
+    -- Finally fade in loader
+    local containerTween = TweenService:Create(loadingContainer, TweenInfo.new(0.3), {BackgroundTransparency = 0.3})
+    containerTween:Play()
+    table.insert(tweens, containerTween)
+    
+    local textTween = TweenService:Create(loadingText, TweenInfo.new(0.3), {TextTransparency = 0})
+    textTween:Play()
+    table.insert(tweens, textTween)
+    
+    local percentTween = TweenService:Create(percentage, TweenInfo.new(0.3), {TextTransparency = 0})
+    percentTween:Play()
+    table.insert(tweens, percentTween)
+    
+    task.wait(0.3)
+    
+    local stages = {
+        {text = "Loading SDK...", duration = 0.5},
+        {text = "Connecting to servers...", duration = 0.7},
+        {text = "Verifying integrity...", duration = 0.6},
+        {text = "Preparing interface...", duration = 0.5}
+    }
+    
+    local totalDuration = 0
+    for _, stage in ipairs(stages) do
+        totalDuration = totalDuration + stage.duration
+    end
+    
+    local elapsed = 0
+    for _, stage in ipairs(stages) do
+        loadingText.Text = stage.text
+        
+        local stageProgress = TweenService:Create(loadingBar, 
+            TweenInfo.new(stage.duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {Size = UDim2.new((elapsed + stage.duration) / totalDuration, 0, 1, 0)})
+        stageProgress:Play()
+        table.insert(tweens, stageProgress)
+        
+        for i = 1, stage.duration * 20 do
+            elapsed = math.min(elapsed + stage.duration / 20, totalDuration)
+            percentage.Text = math.floor((elapsed / totalDuration) * 100) .. "%"
+            task.wait(stage.duration / 20)
+        end
+    end
+    
+    loadingText.Text = "Complete!"
+    task.wait(0.3)
+    
+    local introOutTween = TweenService:Create(introContainer, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        BackgroundTransparency = 1
+    })
+    introOutTween:Play()
+    table.insert(tweens, introOutTween)
+    
+    local logoOutTween = TweenService:Create(introLogo, TweenInfo.new(0.6), {TextTransparency = 1})
+    logoOutTween:Play()
+    table.insert(tweens, logoOutTween)
+    
+    local containerOutTween = TweenService:Create(loadingContainer, TweenInfo.new(0.6), {BackgroundTransparency = 1})
+    containerOutTween:Play()
+    table.insert(tweens, containerOutTween)
+    
+    local barOutTween = TweenService:Create(loadingBar, TweenInfo.new(0.6), {BackgroundTransparency = 1})
+    barOutTween:Play()
+    table.insert(tweens, barOutTween)
+    
+    local textOutTween = TweenService:Create(loadingText, TweenInfo.new(0.6), {TextTransparency = 1})
+    textOutTween:Play()
+    table.insert(tweens, textOutTween)
+    
+    local percentOutTween = TweenService:Create(percentage, TweenInfo.new(0.6), {TextTransparency = 1})
+    percentOutTween:Play()
+    table.insert(tweens, percentOutTween)
+    
+    task.wait(0.6)
+    introContainer:Destroy()
+end)
+
+-- ================================================================= --
+-- MAIN WINDOW (GLASSMORPHISM)
+-- ================================================================= --
+
+local main = Instance.new("Frame")
+main.Name = "MainWindow"
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+main.BackgroundTransparency = 0.4
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Position = UDim2.fromScale(0.5, 0.5)
+main.Size = scaledSize(600, 500)
+main.BorderSizePixel = 0
+main.ZIndex = 10
+main.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 24 * getScale())
+mainCorner.Parent = main
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(100, 200, 255)
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0.5
+mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+mainStroke.Parent = main
+
+local glow = Instance.new("Frame")
+glow.Name = "Glow"
+glow.Size = UDim2.new(1, 80 * getScale(), 1, 80 * getScale())
+glow.Position = UDim2.fromScale(0.5, 0.5)
+glow.AnchorPoint = Vector2.new(0.5, 0.5)
+glow.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+glow.BackgroundTransparency = 0.92
+glow.BorderSizePixel = 0
+glow.ZIndex = 9
+glow.Parent = main
+
+local glowCorner = Instance.new("UICorner")
+glowCorner.CornerRadius = UDim.new(0, 36 * getScale())
+glowCorner.Parent = glow
+
+local scanline = Instance.new("Frame")
+scanline.Size = UDim2.new(1, 0, 0, 2)
+scanline.Position = UDim2.new(0, 0, 0, 0)
+scanline.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Made brighter
+scanline.BackgroundTransparency = 0.5 -- Made more visible
+scanline.BorderSizePixel = 0
+scanline.ZIndex = 11
+scanline.Parent = main
+
+-- Scanline animation with proper cleanup
+animationLoops.scanline = true
+task.spawn(function()
+    while animationLoops.scanline and scanline.Parent do
+        local scanTween = TweenService:Create(scanline, TweenInfo.new(2, Enum.EasingStyle.Linear), {
+            Position = UDim2.new(0, 0, 1, 0)
+        })
+        scanTween:Play()
+        table.insert(tweens, scanTween)
+        task.wait(2)
+        scanline.Position = UDim2.new(0, 0, 0, 0)
+    end
+end)
+
+-- ================================================================= --
+-- CLOSE BUTTON WITH ENHANCED HOVER
+-- ================================================================= --
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = scaledSize(40, 40)
+closeBtn.Position = UDim2.new(1, -50 * getScale(), 0, 10 * getScale())
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+closeBtn.BackgroundTransparency = 0.3
+closeBtn.Text = "×"
+closeBtn.TextSize = 28 * getScale()
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 12
+closeBtn.Parent = main
+
+local closeBtnCorner = Instance.new("UICorner")
+closeBtnCorner.CornerRadius = UDim.new(1, 0)
+closeBtnCorner.Parent = closeBtn
+
+-- Add glow effect for close button
+local closeBtnGlow = Instance.new("UIStroke")
+closeBtnGlow.Color = Color3.fromRGB(255, 60, 60)
+closeBtnGlow.Thickness = 0
+closeBtnGlow.Transparency = 0.5
+closeBtnGlow.Parent = closeBtn
+
+connections.closeBtnEnter = closeBtn.MouseEnter:Connect(function()
+    local enterTween = TweenService:Create(closeBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 100, 100),
+        Size = scaledSize(44, 44)
+    })
+    enterTween:Play()
+    table.insert(tweens, enterTween)
+    
+    local glowTween = TweenService:Create(closeBtnGlow, TweenInfo.new(0.2), {
+        Thickness = 3,
+        Transparency = 0.2
+    })
+    glowTween:Play()
+    table.insert(tweens, glowTween)
+end)
+
+connections.closeBtnLeave = closeBtn.MouseLeave:Connect(function()
+    local leaveTween = TweenService:Create(closeBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 60, 60),
+        Size = scaledSize(40, 40)
+    })
+    leaveTween:Play()
+    table.insert(tweens, leaveTween)
+    
+    local glowTween = TweenService:Create(closeBtnGlow, TweenInfo.new(0.2), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    glowTween:Play()
+    table.insert(tweens, glowTween)
+end)
+
+-- Enhanced outro animation with proper cleanup
+connections.closeBtnClick = closeBtn.MouseButton1Click:Connect(function()
+    -- Fade out all elements sequentially
+    local fadeElements = {
+        {element = main, delay = 0},
+        {element = bgFrame, delay = 0.2},
+        {element = constellationContainer, delay = 0.1},
+        {element = particleContainer, delay = 0.15}
+    }
+    
+    for _, data in ipairs(fadeElements) do
+        task.spawn(function()
+            task.wait(data.delay)
+            if data.element and data.element.Parent then
+                local fadeTween = TweenService:Create(data.element, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    BackgroundTransparency = 1
+                })
+                fadeTween:Play()
+                table.insert(tweens, fadeTween)
+                
+                -- Fade all children
+                for _, child in ipairs(data.element:GetDescendants()) do
+                    if child:IsA("GuiObject") then
+                        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                            local textTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                TextTransparency = 1
+                            })
+                            textTween:Play()
+                            table.insert(tweens, textTween)
+                        end
+                        local bgTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                            BackgroundTransparency = 1
+                        })
+                        bgTween:Play()
+                        table.insert(tweens, bgTween)
+                    end
+                    if child:IsA("UIStroke") then
+                        local strokeTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                            Transparency = 1
+                        })
+                        strokeTween:Play()
+                        table.insert(tweens, strokeTween)
+                    end
+                end
+            end
+        end)
+    end
+    
+    task.wait(0.8)
+    
+    -- Proper cleanup to prevent lag
+    cleanup()
+end)
+
+-- ================================================================= --
+-- TITLE & SUBTITLE
+-- ================================================================= --
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -100 * getScale(), 0, 70 * getScale())
+title.Position = UDim2.new(0, 30 * getScale(), 0, 20 * getScale())
+title.Text = "🔐 THE MIST HUB"
+title.TextSize = 36 * getScale()
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.BackgroundTransparency = 1
+title.TextStrokeTransparency = 0.8
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 12
+title.Parent = main
+
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)), -- Made brighter
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220)) -- Made brighter
+}
+titleGradient.Parent = title
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Name = "Subtitle"
+subtitle.Size = UDim2.new(1, -60 * getScale(), 0, 30 * getScale())
+subtitle.Position = UDim2.new(0, 30 * getScale(), 0, 75 * getScale())
+subtitle.Text = "Premium Authentication System • Secure • Fast"
+subtitle.TextSize = 14 * getScale()
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+subtitle.BackgroundTransparency = 1
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.ZIndex = 12
+subtitle.Parent = main
+
+-- ================================================================= --
+-- STATUS INDICATOR WITH GLOW
+-- ================================================================= --
+
+local statusBar = Instance.new("Frame")
+statusBar.Size = UDim2.new(1, -60 * getScale(), 0, 50 * getScale())
+statusBar.Position = UDim2.new(0, 30 * getScale(), 0, 120 * getScale())
+statusBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+statusBar.BackgroundTransparency = 0.5
+statusBar.BorderSizePixel = 0
+statusBar.ZIndex = 12
+statusBar.Parent = main
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 12 * getScale())
+statusCorner.Parent = statusBar
+
+-- Add glow effect for status bar
+local statusGlow = Instance.new("UIStroke")
+statusGlow.Color = Color3.fromRGB(100, 255, 100)
+statusGlow.Thickness = 0
+statusGlow.Transparency = 0.8
+statusGlow.Parent = statusBar
+
+local statusIcon = Instance.new("TextLabel")
+statusIcon.Size = UDim2.new(0, 40 * getScale(), 1, 0)
+statusIcon.Position = UDim2.new(0, 10 * getScale(), 0, 0)
+statusIcon.Text = "🌐"
+statusIcon.TextSize = 20 * getScale()
+statusIcon.BackgroundTransparency = 1
+statusIcon.ZIndex = 13
+statusIcon.Parent = statusBar
+
+local statusText = Instance.new("TextLabel")
+statusText.Size = UDim2.new(1, -120 * getScale(), 1, 0)
+statusText.Position = UDim2.new(0, 50 * getScale(), 0, 0)
+statusText.Text = "Server Status: Online"
+statusText.TextSize = 14 * getScale()
+statusText.Font = Enum.Font.Gotham
+statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
+statusText.TextXAlignment = Enum.TextXAlignment.Left
+statusText.BackgroundTransparency = 1
+statusText.ZIndex = 13
+statusText.Parent = statusBar
+
+local statusDot = Instance.new("Frame")
+statusDot.Size = scaledSize(8, 8)
+statusDot.Position = UDim2.new(1, -30 * getScale(), 0.5, 0)
+statusDot.AnchorPoint = Vector2.new(0.5, 0.5)
+statusDot.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+statusDot.BorderSizePixel = 0
+statusDot.ZIndex = 13
+statusDot.Parent = statusBar
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = statusDot
+
+-- Add hover effect for status bar
+connections.statusBarEnter = statusBar.MouseEnter:Connect(function()
+    local hoverTween = TweenService:Create(statusGlow, TweenInfo.new(0.3), {
+        Thickness = 2,
+        Transparency = 0.4
+    })
+    hoverTween:Play()
+    table.insert(tweens, hoverTween)
+end)
+
+connections.statusBarLeave = statusBar.MouseLeave:Connect(function()
+    local hoverTween = TweenService:Create(statusGlow, TweenInfo.new(0.3), {
+        Thickness = 0,
+        Transparency = 0.8
+    })
+    hoverTween:Play()
+    table.insert(tweens, hoverTween)
+end)
+
+-- Status dot animation with proper cleanup
+animationLoops.statusDot = true
+task.spawn(function()
+    while animationLoops.statusDot and statusDot.Parent do
+        local pulseTween1 = TweenService:Create(statusDot, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0.7
+        })
+        pulseTween1:Play()
+        table.insert(tweens, pulseTween1)
+        task.wait(1)
+        
+        local pulseTween2 = TweenService:Create(statusDot, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundTransparency = 0
+        })
+        pulseTween2:Play()
+        table.insert(tweens, pulseTween2)
+        task.wait(1)
+    end
+end)
+
+-- ================================================================= --
+-- INPUT FIELD (ENHANCED WITH KEY MASKING)
+-- ================================================================= --
+
+local inputContainer = Instance.new("Frame")
+inputContainer.Name = "InputContainer"
+inputContainer.Size = UDim2.new(1, -60 * getScale(), 0, 60 * getScale())
+inputContainer.Position = UDim2.new(0, 30 * getScale(), 0, 190 * getScale())
+inputContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+inputContainer.BackgroundTransparency = 0.5
+inputContainer.BorderSizePixel = 0
+inputContainer.ZIndex = 12
+inputContainer.Parent = main
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 14 * getScale())
+inputCorner.Parent = inputContainer
+
+local inputStroke = Instance.new("UIStroke")
+inputStroke.Color = Color3.fromRGB(80, 80, 100)
+inputStroke.Thickness = 2
+inputStroke.Transparency = 0.6
+inputStroke.Parent = inputContainer
+
+-- Add glow effect for input container
+local inputGlow = Instance.new("UIStroke")
+inputGlow.Color = Color3.fromRGB(200, 200, 200) -- Made brighter
+inputGlow.Thickness = 0
+inputGlow.Transparency = 0.5
+inputGlow.Parent = inputContainer
+
+local inputIcon = Instance.new("TextLabel")
+inputIcon.Size = UDim2.new(0, 50 * getScale(), 1, 0)
+inputIcon.Position = UDim2.new(0, 0, 0, 0)
+inputIcon.Text = "🔑"
+inputIcon.TextSize = 22 * getScale()
+inputIcon.BackgroundTransparency = 1
+inputIcon.ZIndex = 13
+inputIcon.Parent = inputContainer
+
+local input = Instance.new("TextBox")
+input.Name = "KeyInput"
+input.Size = UDim2.new(1, -110 * getScale(), 1, -10 * getScale())
+input.Position = UDim2.new(0, 50 * getScale(), 0, 5 * getScale())
+input.BackgroundTransparency = 1
+input.PlaceholderText = "Enter your key here..."
+input.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+input.TextSize = 16 * getScale()
+input.TextColor3 = Color3.fromRGB(255, 255, 255)
+input.Font = Enum.Font.Gotham
+input.TextXAlignment = Enum.TextXAlignment.Left
+input.ClearTextOnFocus = false
+input.Text = ""  -- Ensure it starts empty
+input.ZIndex = 13
+input.Parent = inputContainer
+
+-- Enhanced key masking system
+local actualKey = ""
+local keyVisible = false
+local lastTextLength = 0
+
+local function updateDisplayText()
+    if keyVisible or actualKey == "" then
+        input.Text = actualKey
+    else
+        input.Text = string.rep("*", #actualKey)
+    end
+    lastTextLength = #input.Text
+end
+
+-- Handle text input properly
+connections.inputChanged = input.Changed:Connect(function(property)
+    if property == "Text" then
+        local currentText = input.Text
+        if keyVisible then
+            actualKey = currentText
+        else
+            -- Calculate the difference
+            if #currentText > lastTextLength then
+                -- Characters added
+                local added = currentText:sub(lastTextLength + 1)
+                actualKey = actualKey .. added
+            elseif #currentText < lastTextLength then
+                -- Characters removed
+                actualKey = actualKey:sub(1, #actualKey - (lastTextLength - #currentText))
+            end
+            updateDisplayText()
+        end
+    end
+end)
+
+connections.inputFocusLost = input.FocusLost:Connect(function()
+    if not keyVisible then
+        updateDisplayText()
+    end
+end)
+
+local showKeyBtn = Instance.new("TextButton")
+showKeyBtn.Size = UDim2.new(0, 40 * getScale(), 0, 40 * getScale())
+showKeyBtn.Position = UDim2.new(1, -50 * getScale(), 0.5, 0)
+showKeyBtn.AnchorPoint = Vector2.new(0, 0.5)
+showKeyBtn.BackgroundTransparency = 1
+showKeyBtn.Text = "👁‍🗨"
+showKeyBtn.TextSize = 18 * getScale()
+showKeyBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+showKeyBtn.Font = Enum.Font.Gotham
+showKeyBtn.ZIndex = 13
+showKeyBtn.Parent = inputContainer
+
+-- Add glow effect for show/hide button
+local showKeyGlow = Instance.new("UIStroke")
+showKeyGlow.Color = Color3.fromRGB(180, 180, 180)
+showKeyGlow.Thickness = 0
+showKeyGlow.Transparency = 0.5
+showKeyGlow.Parent = showKeyBtn
+
+connections.showKeyClick = showKeyBtn.MouseButton1Click:Connect(function()
+    keyVisible = not keyVisible
+    showKeyBtn.Text = keyVisible and "👁" or "👁‍🗨"
+    updateDisplayText()
+end)
+
+connections.showKeyEnter = showKeyBtn.MouseEnter:Connect(function()
+    local enterTween = TweenService:Create(showKeyGlow, TweenInfo.new(0.2), {
+        Thickness = 2,
+        Transparency = 0.2
+    })
+    enterTween:Play()
+    table.insert(tweens, enterTween)
+    
+    local textTween = TweenService:Create(showKeyBtn, TweenInfo.new(0.2), {
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    })
+    textTween:Play()
+    table.insert(tweens, textTween)
+end)
+
+connections.showKeyLeave = showKeyBtn.MouseLeave:Connect(function()
+    local leaveTween = TweenService:Create(showKeyGlow, TweenInfo.new(0.2), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    leaveTween:Play()
+    table.insert(tweens, leaveTween)
+    
+    local textTween = TweenService:Create(showKeyBtn, TweenInfo.new(0.2), {
+        TextColor3 = Color3.fromRGB(180, 180, 180)
+    })
+    textTween:Play()
+    table.insert(tweens, textTween)
+end)
+
+connections.inputFocused = input.Focused:Connect(function()
+    local focusTween1 = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+        Color = Color3.fromRGB(200, 200, 200), -- Made brighter
+        Transparency = 0,
+        Thickness = 2
+    })
+    focusTween1:Play()
+    table.insert(tweens, focusTween1)
+    
+    local focusTween2 = TweenService:Create(inputGlow, TweenInfo.new(0.3), {
+        Thickness = 3,
+        Transparency = 0.2
+    })
+    focusTween2:Play()
+    table.insert(tweens, focusTween2)
+    
+    local focusTween3 = TweenService:Create(inputContainer, TweenInfo.new(0.3), {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(1, -60 * getScale(), 0, 64 * getScale())
+    })
+    focusTween3:Play()
+    table.insert(tweens, focusTween3)
+end)
+
+connections.inputFocusLost = input.FocusLost:Connect(function()
+    local blurTween1 = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+        Color = Color3.fromRGB(80, 80, 100),
+        Transparency = 0.6
+    })
+    blurTween1:Play()
+    table.insert(tweens, blurTween1)
+    
+    local blurTween2 = TweenService:Create(inputGlow, TweenInfo.new(0.3), {
+        Thickness = 0,
+        Transparency = 0.5
+    })
+    blurTween2:Play()
+    table.insert(tweens, blurTween2)
+    
+    local blurTween3 = TweenService:Create(inputContainer, TweenInfo.new(0.3), {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(1, -60 * getScale(), 0, 60 * getScale())
+    })
+    blurTween3:Play()
+    table.insert(tweens, blurTween3)
+end)
+
+-- ================================================================= --
+-- ENHANCED NOTIFICATION SYSTEM
+-- ================================================================= --
+
+-- Notification container for stacking
+local notificationContainer = Instance.new("Frame")
+notificationContainer.Name = "NotificationContainer"
+notificationContainer.Size = UDim2.new(1, 0, 1, 0)
+notificationContainer.Position = UDim2.new(0, 0, 0, 0)
+notificationContainer.BackgroundTransparency = 1
+notificationContainer.ZIndex = 200
+notificationContainer.Parent = gui
+
+-- Notification queue management
+local activeNotifications = {}
+local maxNotifications = 3
+local notificationSpacing = 8
+
+-- Color themes for different notification types
+local notificationThemes = {
+    success = {
+        primary = Color3.fromRGB(16, 185, 129),
+        secondary = Color3.fromRGB(52, 211, 153),
+        accent = Color3.fromRGB(6, 95, 70),
+        glow = Color3.fromRGB(16, 185, 129),
+        icon = "✓"
+    },
+    error = {
+        primary = Color3.fromRGB(239, 68, 68),
+        secondary = Color3.fromRGB(248, 113, 113),
+        accent = Color3.fromRGB(127, 29, 29),
+        glow = Color3.fromRGB(239, 68, 68),
+        icon = "✗"
+    },
+    info = {
+        primary = Color3.fromRGB(59, 130, 246),
+        secondary = Color3.fromRGB(96, 165, 250),
+        accent = Color3.fromRGB(30, 58, 138),
+        glow = Color3.fromRGB(59, 130, 246),
+        icon = "ℹ"
+    }
+}
+
+-- Create confetti effect for success notifications
+local function createMiniConfetti(parent)
+    for i = 1, 7 do
+        local confetti = Instance.new("Frame")
+        confetti.Size = scaledSize(4, 8)
+        confetti.Position = UDim2.new(0.5, 0, 0.5, 0)
+        confetti.AnchorPoint = Vector2.new(0.5, 0.5)
+        confetti.BackgroundColor3 = Color3.fromHSV(math.random(), 0.8, 1)
+        confetti.BorderSizePixel = 0
+        confetti.Rotation = math.random(0, 360)
+        confetti.ZIndex = 250
+        confetti.Parent = parent
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 1 * getScale())
+        corner.Parent = confetti
+        
+        local angle = math.random() * math.pi * 2
+        local distance = math.random(50, 100) * getScale()
+        local endX = 0.5 + math.cos(angle) * distance / camera.ViewportSize.X
+        local endY = 0.5 + math.sin(angle) * distance / camera.ViewportSize.Y
+        
+        local tween = TweenService:Create(confetti, 
+            TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {
+                Position = UDim2.new(endX, 0, endY, 0),
+                Rotation = confetti.Rotation + math.random(-180, 180),
+                BackgroundTransparency = 1
+            })
+        tween:Play()
+        table.insert(tweens, tween)
+        
+        task.delay(1, function()
+            confetti:Destroy()
+        end)
+    end
+end
+
+-- Create shake effect for error notifications
+local function createShakeEffect(element)
+    local originalPos = element.Position
+    for i = 1, 4 do
+        local shakeOffset = i % 2 == 0 and 4 or -4
+        local shakeTween = TweenService:Create(element, TweenInfo.new(0.05), {
+            Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset + shakeOffset, originalPos.Y.Scale, originalPos.Y.Offset)
+        })
+        shakeTween:Play()
+        table.insert(tweens, shakeTween)
+        task.wait(0.05)
+    end
+    local resetTween = TweenService:Create(element, TweenInfo.new(0.1), {
+        Position = originalPos
+    })
+    resetTween:Play()
+    table.insert(tweens, resetTween)
+end
+
+-- Enhanced notification function
+local function notify(message, notificationType, duration)
+    notificationType = notificationType or "info"
+    duration = duration or 4
+    
+    -- Remove oldest notification if we have too many
+    if #activeNotifications >= maxNotifications then
+        local oldestNotification = table.remove(activeNotifications, 1)
+        if oldestNotification and oldestNotification.container then
+            oldestNotification.container:Destroy()
+        end
+    end
+    
+    -- Get theme colors
+    local theme = notificationThemes[notificationType] or notificationThemes.info
+    
+    -- Create notification container
+    local notifContainer = Instance.new("Frame")
+    notifContainer.Name = "Notification_" .. tick()
+    notifContainer.Size = scaledSize(420, 90)
+    notifContainer.Position = UDim2.new(1, 50 * getScale(), 1, -100 * getScale())
+    notifContainer.AnchorPoint = Vector2.new(1, 1)
+    notifContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    notifContainer.BackgroundTransparency = 0.1
+    notifContainer.BorderSizePixel = 0
+    notifContainer.ZIndex = 201
+    notifContainer.Parent = notificationContainer
+    
+    -- Add to active notifications
+    local notificationData = {
+        container = notifContainer,
+        type = notificationType,
+        startTime = tick()
+    }
+    table.insert(activeNotifications, notificationData)
+    
+    -- Update positions of all notifications
+    local function updateNotificationPositions()
+        for i, notif in ipairs(activeNotifications) do
+            if notif.container and notif.container.Parent then
+                local targetY = -100 - (i - 1) * (90 + notificationSpacing)
+                local posTween = TweenService:Create(notif.container, 
+                    TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                    {Position = UDim2.new(1, 50 * getScale(), 1, targetY * getScale())})
+                posTween:Play()
+                table.insert(tweens, posTween)
+            end
+        end
+    end
+    
+    -- Glassmorphic effect
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 16 * getScale())
+    notifCorner.Parent = notifContainer
+    
+    -- Accent bar on the left
+    local accentBar = Instance.new("Frame")
+    accentBar.Size = UDim2.new(0, 4 * getScale(), 1, 0)
+    accentBar.Position = UDim2.new(0, 0, 0, 0)
+    accentBar.BackgroundColor3 = theme.primary
+    accentBar.BorderSizePixel = 0
+    accentBar.ZIndex = 202
+    accentBar.Parent = notifContainer
+    
+    local accentCorner = Instance.new("UICorner")
+    accentCorner.CornerRadius = UDim.new(0, 8 * getScale())
+    accentCorner.Parent = accentBar
+    
+    -- Main stroke
+    local notifStroke = Instance.new("UIStroke")
+    notifStroke.Color = theme.primary
+    notifStroke.Thickness = 1
+    notifStroke.Transparency = 0.3
+    notifStroke.Parent = notifContainer
+    
+    -- Glow effect
+    local notifGlow = Instance.new("Frame")
+    notifGlow.Size = UDim2.new(1, 20 * getScale(), 1, 20 * getScale())
+    notifGlow.Position = UDim2.fromScale(0.5, 0.5)
+    notifGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+    notifGlow.BackgroundColor3 = theme.glow
+    notifGlow.BackgroundTransparency = 0.9
+    notifGlow.BorderSizePixel = 0
+    notifGlow.ZIndex = 200
+    notifGlow.Parent = notifContainer
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(0, 20 * getScale())
+    glowCorner.Parent = notifGlow
+    
+    -- Icon container with animation
+    local iconContainer = Instance.new("Frame")
+    iconContainer.Size = UDim2.new(0, 50 * getScale(), 0, 50 * getScale())
+    iconContainer.Position = UDim2.new(0, 20 * getScale(), 0.5, 0)
+    iconContainer.AnchorPoint = Vector2.new(0, 0.5)
+    iconContainer.BackgroundTransparency = 1
+    iconContainer.ZIndex = 203
+    iconContainer.Parent = notifContainer
+    
+    local icon = Instance.new("TextLabel")
+    icon.Size = UDim2.new(1, 0, 1, 0)
+    icon.BackgroundTransparency = 1
+    icon.Text = theme.icon
+    icon.TextSize = 28 * getScale()
+    icon.TextColor3 = theme.primary
+    icon.Font = Enum.Font.GothamBold
+    icon.TextTransparency = 1
+    icon.ZIndex = 204
+    icon.Parent = iconContainer
+    
+    -- Message text
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, -90 * getScale(), 1, -20 * getScale())
+    text.Position = UDim2.new(0, 80 * getScale(), 0, 10 * getScale())
+    text.BackgroundTransparency = 1
+    text.Text = message
+    text.TextSize = 16 * getScale()
+    text.TextColor3 = Color3.fromRGB(240, 240, 240)
+    text.Font = Enum.Font.GothamSemibold
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.TextWrapped = true
+    text.TextTransparency = 1
+    text.ZIndex = 203
+    text.Parent = notifContainer
+    
+    -- Progress bar
+    local progress = Instance.new("Frame")
+    progress.Size = UDim2.new(1, 0, 0, 3)
+    progress.Position = UDim2.new(0, 0, 1, -3)
+    progress.BackgroundColor3 = theme.primary
+    progress.BackgroundTransparency = 0.5
+    progress.BorderSizePixel = 0
+    progress.ZIndex = 204
+    progress.Parent = notifContainer
+    
+    local progressCorner = Instance.new("UICorner")
+    progressCorner.CornerRadius = UDim.new(0, 2 * getScale())
+    progressCorner.Parent = progress
+    
+    -- Close button (appears on hover)
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 24 * getScale(), 0, 24 * getScale())
+    closeBtn.Position = UDim2.new(1, -30 * getScale(), 0, 15 * getScale())
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "×"
+    closeBtn.TextSize = 18 * getScale()
+    closeBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextTransparency = 1
+    closeBtn.ZIndex = 205
+    closeBtn.Parent = notifContainer
+    
+    -- Entry animation sequence
+    task.spawn(function()
+        -- Slide in from right
+        local slideIn = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+            {Position = UDim2.new(1, -20 * getScale(), 1, -100 * getScale())})
+        slideIn:Play()
+        table.insert(tweens, slideIn)
+        
+        task.wait(0.2)
+        
+        -- Scale bounce effect
+        local scaleBounce1 = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad), 
+            {Size = scaledSize(440, 95)})
+        scaleBounce1:Play()
+        table.insert(tweens, scaleBounce1)
+        
+        task.wait(0.1)
+        
+        local scaleBounce2 = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad), 
+            {Size = scaledSize(420, 90)})
+        scaleBounce2:Play()
+        table.insert(tweens, scaleBounce2)
+        
+        -- Icon animation based on type
+        if notificationType == "success" then
+            -- Spin animation for success
+            local spinTween = TweenService:Create(icon, 
+                TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+                {Rotation = 360, TextTransparency = 0})
+            spinTween:Play()
+            table.insert(tweens, spinTween)
+            
+            -- Create mini confetti
+            createMiniConfetti(iconContainer)
+        elseif notificationType == "error" then
+            -- Shake animation for error
+            icon.TextTransparency = 0
+            createShakeEffect(iconContainer)
+            
+            -- Highlight input field
+            if inputContainer then
+                local highlightTween = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+                    Color = theme.primary,
+                    Transparency = 0,
+                    Thickness = 3
+                })
+                highlightTween:Play()
+                table.insert(tweens, highlightTween)
+                
+                task.wait(2)
+                local resetHighlight = TweenService:Create(inputStroke, TweenInfo.new(0.3), {
+                    Color = Color3.fromRGB(80, 80, 100),
+                    Transparency = 0.6,
+                    Thickness = 2
+                })
+                resetHighlight:Play()
+                table.insert(tweens, resetHighlight)
+            end
+        else
+            -- Fade in for info
+            local fadeTween = TweenService:Create(icon, 
+                TweenInfo.new(0.3), 
+                {TextTransparency = 0})
+            fadeTween:Play()
+            table.insert(tweens, fadeTween)
+        end
+        
+        -- Fade in text
+        task.wait(0.1)
+        local textFadeIn = TweenService:Create(text, 
+            TweenInfo.new(0.3), 
+            {TextTransparency = 0})
+        textFadeIn:Play()
+        table.insert(tweens, textFadeIn)
+        
+        -- Fade in close button
+        local closeFadeIn = TweenService:Create(closeBtn, 
+            TweenInfo.new(0.3), 
+            {TextTransparency = 0.5})
+        closeFadeIn:Play()
+        table.insert(tweens, closeFadeIn)
+        
+        -- Update positions after entry
+        updateNotificationPositions()
+    end)
+    
+    -- Progress bar animation
+    local progressTween = TweenService:Create(progress, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 3)
+    })
+    progressTween:Play()
+    table.insert(tweens, progressTween)
+    
+    -- Hover effects
+    local isHovering = false
+    connections[notifContainer.Name .. "_Enter"] = notifContainer.MouseEnter:Connect(function()
+        isHovering = true
+        
+        -- Elevation effect
+        local elevateTween = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.2), 
+            {Size = scaledSize(430, 95)})
+        elevateTween:Play()
+        table.insert(tweens, elevateTween)
+        
+        -- Glow intensification
+        local glowTween = TweenService:Create(notifGlow, 
+            TweenInfo.new(0.2), 
+            {BackgroundTransparency = 0.7})
+        glowTween:Play()
+        table.insert(tweens, glowTween)
+        
+        -- Accent bar glow
+        local accentGlow = TweenService:Create(accentBar, 
+            TweenInfo.new(0.2), 
+            {BackgroundTransparency = 0})
+        accentGlow:Play()
+        table.insert(tweens, accentGlow)
+        
+        -- Close button visibility
+        local closeShow = TweenService:Create(closeBtn, 
+            TweenInfo.new(0.2), 
+            {TextTransparency = 0})
+        closeShow:Play()
+        table.insert(tweens, closeShow)
+        
+        -- Pause progress bar
+        progressTween:Pause()
+    end)
+    
+    connections[notifContainer.Name .. "_Leave"] = notifContainer.MouseLeave:Connect(function()
+        isHovering = false
+        
+        -- Reset elevation
+        local resetTween = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.2), 
+            {Size = scaledSize(420, 90)})
+        resetTween:Play()
+        table.insert(tweens, resetTween)
+        
+        -- Reset glow
+        local resetGlow = TweenService:Create(notifGlow, 
+            TweenInfo.new(0.2), 
+            {BackgroundTransparency = 0.9})
+        resetGlow:Play()
+        table.insert(tweens, resetGlow)
+        
+        -- Reset accent bar
+        local resetAccent = TweenService:Create(accentBar, 
+            TweenInfo.new(0.2), 
+            {BackgroundTransparency = 0})
+        resetAccent:Play()
+        table.insert(tweens, resetAccent)
+        
+        -- Hide close button
+        local closeHide = TweenService:Create(closeBtn, 
+            TweenInfo.new(0.2), 
+            {TextTransparency = 0.5})
+        closeHide:Play()
+        table.insert(tweens, closeHide)
+        
+        -- Resume progress bar
+        if not progressTween.Completed then
+            progressTween:Play()
+        end
+    end)
+    
+    -- Close button functionality
+    connections[notifContainer.Name .. "_Close"] = closeBtn.MouseButton1Click:Connect(function()
+        -- Remove from active notifications
+        for i, notif in ipairs(activeNotifications) do
+            if notif.container == notifContainer then
+                table.remove(activeNotifications, i)
+                break
+            end
+        end
+        
+        -- Exit animation
+        local exitTween = TweenService:Create(notifContainer, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {
+                Position = UDim2.new(1, 50 * getScale(), 1, -100 * getScale()),
+                Size = scaledSize(380, 80),
+                BackgroundTransparency = 0.5
+            })
+        exitTween:Play()
+        table.insert(tweens, exitTween)
+        
+        exitTween.Completed:Connect(function()
+            notifContainer:Destroy()
+            updateNotificationPositions()
+        end)
+    end)
+    
+    -- Auto-dismiss after duration
+    task.spawn(function()
+        task.wait(duration)
+        
+        if notifContainer and notifContainer.Parent then
+            -- Remove from active notifications
+            for i, notif in ipairs(activeNotifications) do
+                if notif.container == notifContainer then
+                    table.remove(activeNotifications, i)
+                    break
+                end
+            end
+            
+            -- Exit animation
+            local exitTween = TweenService:Create(notifContainer, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+                {
+                    Position = UDim2.new(1, 50 * getScale(), 1, -100 * getScale()),
+                    Size = scaledSize(380, 80),
+                    BackgroundTransparency = 0.5
+                })
+            exitTween:Play()
+            table.insert(tweens, exitTween)
+            
+            exitTween.Completed:Connect(function()
+                notifContainer:Destroy()
+                updateNotificationPositions()
+            end)
+        end
+    end)
+end
+
+-- ================================================================= --
+-- CONFETTI EFFECT
+-- ================================================================= --
+
+local function createConfetti()
+    for i = 1, 50 do
+        local confetti = Instance.new("Frame")
+        confetti.Size = scaledSize(math.random(4, 8), math.random(8, 16))
+        confetti.Position = UDim2.new(0.5, 0, 0.5, 0)
+        confetti.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+        confetti.BorderSizePixel = 0
+        confetti.Rotation = math.random(0, 360)
+        confetti.ZIndex = 250
+        confetti.Parent = gui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 2 * getScale())
+        corner.Parent = confetti
+        
+        local angle = math.random() * math.pi * 2
+        local distance = math.random(200, 500) * getScale()
+        local endX = 0.5 + math.cos(angle) * distance / camera.ViewportSize.X
+        local endY = 0.5 + math.sin(angle) * distance / camera.ViewportSize.Y
+        
+        local tween = TweenService:Create(confetti, 
+            TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {
+                Position = UDim2.new(endX, 0, endY, 0),
+                Rotation = confetti.Rotation + math.random(-180, 180),
+                BackgroundTransparency = 1
+            })
+        tween:Play()
+        table.insert(tweens, tween)
+        
+        task.delay(1.5, function()
+            confetti:Destroy()
+        end)
+    end
+end
+
+-- ================================================================= --
+-- BUTTON CREATION FUNCTION (ENHANCED WITH GLOW)
+-- ================================================================= --
+
+local function createButton(text, xPos, yPos, width, color1, color2, icon)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, width * getScale(), 0, 60 * getScale())
+    btn.Position = UDim2.new(0, xPos * getScale(), 0, yPos * getScale())
+    btn.BackgroundColor3 = color1
+    btn.BackgroundTransparency = 0.3
+    btn.Text = ""
+    btn.BorderSizePixel = 0
+    btn.ZIndex = 12
+    btn.Parent = main
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 14 * getScale())
+    btnCorner.Parent = btn
+
+    local btnGradient = Instance.new("UIGradient")
+    btnGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(1, color2)
+    }
+    btnGradient.Rotation = 45
+    btnGradient.Parent = btn
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = color2
+    btnStroke.Thickness = 2
+    btnStroke.Transparency = 0.5
+    btnStroke.Parent = btn
+
+    -- Add glow effect for button
+    local btnGlow = Instance.new("UIStroke")
+    btnGlow.Color = color2
+    btnGlow.Thickness = 0
+    btnGlow.Transparency = 0.3
+    btnGlow.Parent = btn
+
+    local btnIcon = Instance.new("TextLabel")
+    btnIcon.Size = UDim2.new(0, 40 * getScale(), 1, 0)
+    btnIcon.Position = UDim2.new(0, 20 * getScale(), 0, 0)
+    btnIcon.Text = icon
+    btnIcon.TextSize = 24 * getScale()
+    btnIcon.TextColor3 = Color3.new(1, 1, 1)
+    btnIcon.Font = Enum.Font.GothamBold
+    btnIcon.BackgroundTransparency = 1
+    btnIcon.ZIndex = 13
+    btnIcon.Parent = btn
+
+    local btnText = Instance.new("TextLabel")
+    btnText.Size = UDim2.new(1, -80 * getScale(), 1, 0)
+    btnText.Position = UDim2.new(0, 60 * getScale(), 0, 0)
+    btnText.Text = text
+    btnText.TextSize = 18 * getScale()
+    btnText.TextColor3 = Color3.new(1, 1, 1)
+    btnText.Font = Enum.Font.GothamBold
+    btnText.TextXAlignment = Enum.TextXAlignment.Center  -- FIXED: Changed from Left to Center
+    btnText.BackgroundTransparency = 1
+    btnText.ZIndex = 13
+    btnText.Parent = btn
+
+    local originalSize = btn.Size
+
+    connections[btn.Name .. "Enter"] = btn.MouseEnter:Connect(function()
+        local enterTween = TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.1,
+            Size = UDim2.new(0, (width + 5) * getScale(), 0, 64 * getScale())
+        })
+        enterTween:Play()
+        table.insert(tweens, enterTween)
+        
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.3), {
+            Thickness = 3,
+            Transparency = 0.2
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+        
+        local glowTween = TweenService:Create(btnGlow, TweenInfo.new(0.3), {
+            Thickness = 5,
+            Transparency = 0.1
+        })
+        glowTween:Play()
+        table.insert(tweens, glowTween)
+        
+        local iconTween = TweenService:Create(btnIcon, TweenInfo.new(0.3), {
+            TextSize = 28 * getScale()
+        })
+        iconTween:Play()
+        table.insert(tweens, iconTween)
+    end)
+
+    connections[btn.Name .. "Leave"] = btn.MouseLeave:Connect(function()
+        local leaveTween = TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.3,
+            Size = originalSize
+        })
+        leaveTween:Play()
+        table.insert(tweens, leaveTween)
+        
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.3), {
+            Thickness = 2,
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+        
+        local glowTween = TweenService:Create(btnGlow, TweenInfo.new(0.3), {
+            Thickness = 0,
+            Transparency = 0.3
+        })
+        glowTween:Play()
+        table.insert(tweens, glowTween)
+        
+        local iconTween = TweenService:Create(btnIcon, TweenInfo.new(0.3), {
+            TextSize = 24 * getScale()
+        })
+        iconTween:Play()
+        table.insert(tweens, iconTween)
+    end)
+
+    connections[btn.Name .. "Down"] = btn.MouseButton1Down:Connect(function()
+        local downTween = TweenService:Create(btn, TweenInfo.new(0.1), {
+            Size = UDim2.new(0, (width - 2) * getScale(), 0, 58 * getScale())
+        })
+        downTween:Play()
+        table.insert(tweens, downTween)
+    end)
+
+    connections[btn.Name .. "Up"] = btn.MouseButton1Up:Connect(function()
+        local upTween = TweenService:Create(btn, TweenInfo.new(0.1), {
+            Size = UDim2.new(0, (width + 5) * getScale(), 0, 64 * getScale())
+        })
+        upTween:Play()
+        table.insert(tweens, upTween)
+    end)
+
+    return btn
+end
+
+-- ================================================================= --
+-- CREATE HORIZONTAL BUTTONS AT THE BOTTOM
+-- ================================================================= --
+
+-- Calculate button width to fit three buttons horizontally with spacing
+local buttonWidth = 170
+local buttonSpacing = 30
+local totalWidth = (buttonWidth * 3) + (buttonSpacing * 2)
+local startX = (600 - totalWidth) / 2  -- Center the buttons horizontally
+local buttonY = 420  -- Position at the bottom of the window
+
+local validateBtn = createButton("Validate Key", startX, buttonY, buttonWidth,
+    Color3.fromRGB(40, 180, 99), 
+    Color3.fromRGB(20, 230, 120), 
+    "✓")
+
+local getKeyBtn = createButton("Get Key", startX + buttonWidth + buttonSpacing, buttonY, buttonWidth,
+    Color3.fromRGB(52, 152, 219), 
+    Color3.fromRGB(41, 128, 185), 
+    "🔑")
+
+local discordBtn = createButton("Join Discord", startX + (buttonWidth + buttonSpacing) * 2, buttonY, buttonWidth,
+    Color3.fromRGB(88, 101, 242),
+    Color3.fromRGB(71, 82, 196),
+    "💬")
+
+-- ================================================================= --
+-- BUTTON CLICK HANDLERS
+-- ================================================================= --
+
+connections.validateClick = validateBtn.MouseButton1Click:Connect(function()
+    local key = actualKey
+    if key == "" then
+        notify("Please enter a key!", "error", 4)
+        createShakeEffect(inputContainer)
+    else
+        validateBtn.Active = false
+        
+        local result = JunkieProtected.ValidateKey({ Key = key })
+        if result == "valid" then
+            if writefile then
+                writefile(KEY_FILENAME, key)
+            end
+            notify("Key validated successfully! Welcome to THE MIST HUB", "success", 5)
+            createConfetti()
+            
+            task.wait(1.5)
+            
+            -- Enhanced fade-out outro with proper cleanup
+            local fadeElements = {
+                {element = main, delay = 0},
+                {element = bgFrame, delay = 0.2},
+                {element = constellationContainer, delay = 0.1},
+                {element = particleContainer, delay = 0.15}
+            }
+            
+            for _, data in ipairs(fadeElements) do
+                task.spawn(function()
+                    task.wait(data.delay)
+                    if data.element and data.element.Parent then
+                        local fadeTween = TweenService:Create(data.element, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                            BackgroundTransparency = 1
+                        })
+                        fadeTween:Play()
+                        table.insert(tweens, fadeTween)
+                        
+                        -- Fade all children
+                        for _, child in ipairs(data.element:GetDescendants()) do
+                            if child:IsA("GuiObject") then
+                                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                                    local textTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                        TextTransparency = 1
+                                    })
+                                    textTween:Play()
+                                    table.insert(tweens, textTween)
+                                end
+                                local bgTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                    BackgroundTransparency = 1
+                                })
+                                bgTween:Play()
+                                table.insert(tweens, bgTween)
+                            end
+                            if child:IsA("UIStroke") then
+                                local strokeTween = TweenService:Create(child, TweenInfo.new(0.6), {
+                                    Transparency = 1
+                                })
+                                strokeTween:Play()
+                                table.insert(tweens, strokeTween)
+                            end
+                        end
+                    end
+                end)
+            end
+            
+            task.wait(0.8)
+            
+            -- Proper cleanup to prevent lag
+            cleanup()
+            RunMainScript()
+        else
+            notify("Invalid key. Please check and try again.", "error", 4)
+            validateBtn.Active = true
+        end
+    end
+end)
+
+connections.getKeyClick = getKeyBtn.MouseButton1Click:Connect(function()
+    local link = JunkieProtected.GetKeyLink()
+    if setclipboard then
+        setclipboard(link)
+        notify("Key link copied to clipboard! Paste in browser.", "info", 3)
+    else
+        notify("Clipboard not supported. Check console for link.", "error", 4)
+        print("Key Link:", link)
+    end
+end)
+
+connections.discordClick = discordBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(DISCORD_LINK)
+        notify("Discord link copied to clipboard!", "info", 3)
+    else
+        notify("Opening Discord in default browser...", "info", 3)
+        -- Fallback for systems without clipboard access
+        if syn and syn.request then
+            syn.request({
+                Url = "http://localhost/?redirect=" .. DISCORD_LINK,
+                Method = "GET"
+            })
+        end
+    end
+end)
+
+-- ================================================================= --
+-- RESIZE HANDLER
+-- ================================================================= --
+
+connections.resize = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    main.Size = scaledSize(600, 500)
+    main.Position = UDim2.fromScale(0.5, 0.5)
+    title.TextSize = 36 * getScale()
+    subtitle.TextSize = 14 * getScale()
+    input.TextSize = 16 * getScale()
+    
+    -- Recalculate button positions on resize
+    local scale = getScale()
+    local buttonWidth = 170 * scale
+    local buttonSpacing = 30 * scale
+    local totalWidth = (buttonWidth * 3) + (buttonSpacing * 2)
+    local startX = (600 * scale - totalWidth) / 2
+    local buttonY = 420 * scale
+    
+    validateBtn.Size = UDim2.new(0, buttonWidth, 0, 60 * scale)
+    validateBtn.Position = UDim2.new(0, startX, 0, buttonY)
+    
+    getKeyBtn.Size = UDim2.new(0, buttonWidth, 0, 60 * scale)
+    getKeyBtn.Position = UDim2.new(0, startX + buttonWidth + buttonSpacing, 0, buttonY)
+    
+    discordBtn.Size = UDim2.new(0, buttonWidth, 0, 60 * scale)
+    discordBtn.Position = UDim2.new(0, startX + (buttonWidth + buttonSpacing) * 2, 0, buttonY)
+end)
+
+-- ================================================================= --
+-- FINAL FADE-IN ANIMATION
+-- ================================================================= --
+
+task.wait(3)
+
+main.BackgroundTransparency = 1
+for _, child in ipairs(main:GetDescendants()) do
+    if child:IsA("GuiObject") then
+        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+            child.TextTransparency = 1
+        end
+        child.BackgroundTransparency = 1
+    end
+    if child:IsA("UIStroke") then
+        child.Transparency = 1
+    end
+end
+
+local mainFadeIn = TweenService:Create(main, TweenInfo.new(0.6), {
+    BackgroundTransparency = 0.4
+})
+mainFadeIn:Play()
+table.insert(tweens, mainFadeIn)
+
+task.wait(0.2)
+
+local function fadeIn(element, delay)
+    task.wait(delay)
+    if element:IsA("TextLabel") or element:IsA("TextButton") or element:IsA("TextBox") then
+        local textTween = TweenService:Create(element, TweenInfo.new(0.4), {
+            TextTransparency = 0,
+            BackgroundTransparency = element.Name == "CloseButton" and 0.3 or (element:IsA("Frame") and 0.5 or 1)
+        })
+        textTween:Play()
+        table.insert(tweens, textTween)
+    elseif element:IsA("Frame") then
+        local bgTween = TweenService:Create(element, TweenInfo.new(0.4), {
+            BackgroundTransparency = 0.5
+        })
+        bgTween:Play()
+        table.insert(tweens, bgTween)
+    end
+    
+    local stroke = element:FindFirstChildOfClass("UIStroke")
+    if stroke then
+        local strokeTween = TweenService:Create(stroke, TweenInfo.new(0.4), {
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+    end
+end
+
+-- Enhanced button fade-in function
+local function fadeInButton(button, delay)
+    task.wait(delay)
+    
+    -- Fade in the button background
+    local bgTween = TweenService:Create(button, TweenInfo.new(0.4), {
+        BackgroundTransparency = 0.3
+    })
+    bgTween:Play()
+    table.insert(tweens, bgTween)
+    
+    -- Fade in the button stroke
+    local btnStroke = button:FindFirstChildOfClass("UIStroke")
+    if btnStroke then
+        local strokeTween = TweenService:Create(btnStroke, TweenInfo.new(0.4), {
+            Transparency = 0.5
+        })
+        strokeTween:Play()
+        table.insert(tweens, strokeTween)
+    end
+    
+    -- Fade in all child elements
+    for _, child in ipairs(button:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local textTween = TweenService:Create(child, TweenInfo.new(0.4), {
+                TextTransparency = 0
+            })
+            textTween:Play()
+            table.insert(tweens, textTween)
+        elseif child:IsA("UIGradient") then
+            -- Gradient doesn't have transparency, but we can create a fade effect by animating the button
+            local gradientTween = TweenService:Create(button, TweenInfo.new(0.4), {
+                BackgroundTransparency = 0.3
+            })
+            gradientTween:Play()
+            table.insert(tweens, gradientTween)
+        end
+    end
+end
+
+fadeIn(closeBtn, 0)
+fadeIn(title, 0.1)
+fadeIn(subtitle, 0.15)
+fadeIn(statusBar, 0.2)
+fadeIn(statusIcon, 0.2)
+fadeIn(statusText, 0.2)
+fadeIn(statusDot, 0.2)
+fadeIn(inputContainer, 0.3)
+fadeIn(input, 0.3)
+fadeIn(inputIcon, 0.3)
+fadeIn(showKeyBtn, 0.3)
+
+-- Use the enhanced button fade-in function for the three main buttons
+fadeInButton(validateBtn, 0.4)
+fadeInButton(getKeyBtn, 0.45)
+fadeInButton(discordBtn, 0.5)
+
+-- Auto-focus the input field after fade-in
+task.wait(0.6)
+input:CaptureFocus()
