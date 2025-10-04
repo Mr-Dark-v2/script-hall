@@ -1,0 +1,550 @@
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
+if ChangeHistoryService then
+    ChangeHistoryService:SetWaypoint("Before Enhanced Credits Screen")
+end
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local existing = playerGui:FindFirstChild("CreditsScreen")
+if existing then
+    existing:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CreditsScreen"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
+
+local background = Instance.new("Frame")
+background.Size = UDim2.new(1,0,1,0)
+background.Position = UDim2.new(0,0,0,0)
+background.BackgroundColor3 = Color3.fromRGB(5,5,15)
+background.BorderSizePixel = 0
+background.Parent = screenGui
+
+local gradientLayers = {}
+for i = 1, 3 do
+    local layer = Instance.new("Frame")
+    layer.Size = UDim2.new(1,0,1,0)
+    layer.Position = UDim2.new(0,0,0,0)
+    layer.BackgroundTransparency = 0.3 + (i * 0.2)
+    layer.BorderSizePixel = 0
+    layer.ZIndex = i
+    layer.Parent = background
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(10 + i*5, 10 + i*5, 25 + i*5)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20 + i*5, 15 + i*5, 40 + i*5)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10 + i*5, 10 + i*5, 25 + i*5))
+    })
+    gradient.Rotation = 45 + (i * 15)
+    gradient.Parent = layer
+    
+    table.insert(gradientLayers, {frame = layer, gradient = gradient, baseRotation = 45 + (i * 15)})
+end
+
+task.spawn(function()
+    while screenGui.Parent do
+        for i, layer in ipairs(gradientLayers) do
+            local speed = 0.5 + (i * 0.2)
+            layer.gradient.Rotation = layer.baseRotation + (tick() * speed * 10) % 360
+        end
+        RunService.Heartbeat:Wait()
+    end
+end)
+
+local particles = Instance.new("Frame")
+particles.Size = UDim2.new(1,0,1,0)
+particles.Position = UDim2.new(0,0,0,0)
+particles.BackgroundTransparency = 1
+particles.ZIndex = 4
+particles.Parent = background
+
+local function createParticle()
+    local particle = Instance.new("Frame")
+    particle.Size = UDim2.new(0, math.random(2, 6), 0, math.random(2, 6))
+    particle.Position = UDim2.new(math.random(), 0, 1.1, 0)
+    particle.BackgroundColor3 = Color3.fromRGB(
+        math.random(100, 200),
+        math.random(100, 200),
+        math.random(200, 255)
+    )
+    particle.BorderSizePixel = 0
+    particle.ZIndex = math.random(1, 3)
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0.5, 0)
+    corner.Parent = particle
+    
+    particle.Parent = particles
+    
+    local duration = math.random(10, 20)
+    local drift = math.random(-100, 100)
+    local rotation = math.random(-180, 180)
+    
+    local tween = TweenService:Create(particle, TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        Position = UDim2.new(math.random(), 0, -0.1, 0),
+        Rotation = rotation,
+        BackgroundTransparency = 1
+    })
+    
+    tween:Play()
+    tween.Completed:Connect(function()
+        particle:Destroy()
+    end)
+end
+
+task.spawn(function()
+    while screenGui.Parent do
+        createParticle()
+        task.wait(math.random(0.2, 1.5))
+    end
+end)
+
+local container = Instance.new("Frame")
+container.Size = UDim2.new(0.6,0,0.6,0)
+container.Position = UDim2.new(0.2,0,0.18,0)
+container.BackgroundTransparency = 1
+container.BackgroundColor3 = Color3.fromRGB(20,20,40)
+container.BorderSizePixel = 0
+container.Parent = background
+
+local containerStroke = Instance.new("UIStroke")
+containerStroke.Color = Color3.fromRGB(80,80,200)
+containerStroke.Thickness = 3
+containerStroke.Transparency = 1
+containerStroke.Parent = container
+
+local containerCorner = Instance.new("UICorner")
+containerCorner.CornerRadius = UDim.new(0,20)
+containerCorner.Parent = container
+
+local entranceTween = TweenService:Create(container, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    BackgroundTransparency = 0.1,
+    Size = UDim2.new(0.6,0,0.6,0)
+})
+entranceTween:Play()
+
+local strokeTween = TweenService:Create(containerStroke, TweenInfo.new(1.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+    Transparency = 0.3
+})
+strokeTween:Play()
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0.14,0)
+title.Position = UDim2.new(0,0,0.03,0)
+title.BackgroundTransparency = 1
+title.Text = "CREDITS"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBlack
+title.TextTransparency = 1
+title.Parent = container
+
+local ts1 = Instance.new("UIStroke", title)
+ts1.Color = Color3.fromRGB(100,100,255)
+ts1.Thickness = 6
+ts1.Transparency = 1
+local ts2 = Instance.new("UIStroke", title)
+ts2.Color = Color3.fromRGB(150,150,255)
+ts2.Thickness = 3
+ts2.Transparency = 1
+
+task.spawn(function()
+    task.wait(0.5)
+    local titleTween = TweenService:Create(title, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    })
+    titleTween:Play()
+    
+    local stroke1Tween = TweenService:Create(ts1, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Transparency = 0.3
+    })
+    stroke1Tween:Play()
+    
+    local stroke2Tween = TweenService:Create(ts2, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Transparency = 0.5
+    })
+    stroke2Tween:Play()
+end)
+
+task.spawn(function()
+    while screenGui.Parent do
+        local glowCycle = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+        
+        local glowIn1 = TweenService:Create(ts1, glowCycle, {Transparency = 0.1})
+        local glowIn2 = TweenService:Create(ts2, glowCycle, {Transparency = 0.3})
+        
+        local glowOut1 = TweenService:Create(ts1, glowCycle, {Transparency = 0.5})
+        local glowOut2 = TweenService:Create(ts2, glowCycle, {Transparency = 0.7})
+        
+        glowIn1:Play()
+        glowIn2:Play()
+        
+        glowIn1.Completed:Wait()
+        
+        glowOut1:Play()
+        glowOut2:Play()
+        
+        glowOut1.Completed:Wait()
+    end
+end)
+
+local Credits = {
+    {role = "Creator", name = "@Nakhun12309", note = "Made LunarisX.", color = Color3.fromRGB(255, 200, 100)},
+    {role = "Junkie-Development", name = "@Stefan", note = "Owner of https://junkie-development.de/", color = Color3.fromRGB(100, 200, 255)},
+    {role = "Community Manager", name = "@wxyz", note = "A good Community Manager, Kind.", color = Color3.fromRGB(200, 255, 100)},
+}
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(0.9,0,0.7,0)
+scrollFrame.Position = UDim2.new(0.05,0,0.18,0)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255)
+scrollFrame.ScrollBarImageTransparency = 0.5
+scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
+scrollFrame.Parent = container
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = scrollFrame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0,12)
+
+local uiPadding = Instance.new("UIPadding")
+uiPadding.PaddingLeft = UDim.new(0,18)
+uiPadding.PaddingRight = UDim.new(0,18)
+uiPadding.PaddingTop = UDim.new(0,10)
+uiPadding.Parent = scrollFrame
+
+for i, entry in ipairs(Credits) do
+    local creditFrame = Instance.new("Frame")
+    creditFrame.Size = UDim2.new(1,-36,0,50)
+    creditFrame.BackgroundTransparency = 1
+    creditFrame.Parent = scrollFrame
+    
+    local creditLabel = Instance.new("TextLabel")
+    creditLabel.Size = UDim2.new(1,0,1,0)
+    creditLabel.Position = UDim2.new(0,0,0,0)
+    creditLabel.BackgroundTransparency = 1
+    creditLabel.TextXAlignment = Enum.TextXAlignment.Left
+    creditLabel.TextYAlignment = Enum.TextYAlignment.Center
+    creditLabel.TextScaled = true
+    creditLabel.Font = Enum.Font.GothamBlack
+    creditLabel.TextColor3 = entry.color or Color3.fromRGB(220,220,255)
+    creditLabel.Text = string.format("%s — %s%s", entry.role, entry.name, (entry.note~="" and (" ("..entry.note..")") or ""))
+    creditLabel.TextTransparency = 1
+    creditLabel.Parent = creditFrame
+    
+    local highlight = Instance.new("Frame")
+    highlight.Size = UDim2.new(0,0,1,0)
+    highlight.Position = UDim2.new(0,0,0,0)
+    highlight.BackgroundColor3 = entry.color or Color3.fromRGB(100,100,255)
+    highlight.BackgroundTransparency = 0.8
+    highlight.BorderSizePixel = 0
+    highlight.ZIndex = creditLabel.ZIndex - 1
+    highlight.Parent = creditFrame
+    
+    local highlightCorner = Instance.new("UICorner")
+    highlightCorner.CornerRadius = UDim.new(0,10)
+    highlightCorner.Parent = highlight
+    
+    task.spawn(function()
+        task.wait(0.8 + (i * 0.2))
+        
+        creditLabel.Position = UDim2.new(-0.2, 0, 0, 0)
+        local slideIn = TweenService:Create(creditLabel, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0,0,0,0),
+            TextTransparency = 0
+        })
+        slideIn:Play()
+        
+        local highlightExpand = TweenService:Create(highlight, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1,0,1,0)
+        })
+        highlightExpand:Play()
+        
+        highlightExpand.Completed:Connect(function()
+            local highlightFade = TweenService:Create(highlight, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 1
+            })
+            highlightFade:Play()
+        end)
+        
+        for j = 1, string.len(creditLabel.Text) do
+            task.wait(0.02)
+            print(string.sub(creditLabel.Text, 1, j))
+        end
+    end)
+    
+    creditLabel.MouseEnter:Connect(function()
+        local hover = TweenService:Create(creditLabel, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            TextColor3 = Color3.fromRGB(255,255,255)
+        })
+        hover:Play()
+        
+        local hoverHighlight = TweenService:Create(highlight, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0.6
+        })
+        hoverHighlight:Play()
+    end)
+    
+    creditLabel.MouseLeave:Connect(function()
+        local hover = TweenService:Create(creditLabel, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            TextColor3 = entry.color or Color3.fromRGB(220,220,255)
+        })
+        hover:Play()
+        
+        local hoverHighlight = TweenService:Create(highlight, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 1
+        })
+        hoverHighlight:Play()
+    end)
+end
+
+RunService.Heartbeat:Wait()
+scrollFrame.CanvasSize = UDim2.new(0,0,0,uiList.AbsoluteContentSize.Y)
+
+local skipBtn = Instance.new("TextButton")
+skipBtn.Size = UDim2.new(0,200,0,50)
+skipBtn.AnchorPoint = Vector2.new(0.5,0)
+skipBtn.BackgroundTransparency = 0.85
+skipBtn.BackgroundColor3 = Color3.fromRGB(30,30,50)
+skipBtn.BorderSizePixel = 0
+skipBtn.Text = "Skip Credits"
+skipBtn.Font = Enum.Font.GothamBlack
+skipBtn.TextScaled = true
+skipBtn.TextColor3 = Color3.new(1,1,1)
+skipBtn.TextTransparency = 1
+skipBtn.Parent = scrollFrame
+
+local skipBtnCorner = Instance.new("UICorner")
+skipBtnCorner.CornerRadius = UDim.new(0,10)
+skipBtnCorner.Parent = skipBtn
+
+local skipBtnStroke = Instance.new("UIStroke")
+skipBtnStroke.Color = Color3.fromRGB(100,100,255)
+skipBtnStroke.Thickness = 2
+skipBtnStroke.Transparency = 1
+skipBtnStroke.Parent = skipBtn
+
+skipBtn.Position = UDim2.new(0.5,0,0, uiList.AbsoluteContentSize.Y + 30)
+scrollFrame.CanvasSize = UDim2.new(0,0,0, uiList.AbsoluteContentSize.Y + 100)
+
+task.spawn(function()
+    task.wait(1.5)
+    local skipBtnTween = TweenService:Create(skipBtn, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    })
+    skipBtnTween:Play()
+    
+    local skipBtnStrokeTween = TweenService:Create(skipBtnStroke, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Transparency = 0.3
+    })
+    skipBtnStrokeTween:Play()
+end)
+
+local skipBtnHovering = false
+skipBtn.MouseEnter:Connect(function()
+    skipBtnHovering = true
+    local hover = TweenService:Create(skipBtn, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0.6,
+        Size = UDim2.new(0,220,0,55)
+    })
+    hover:Play()
+    
+    local strokeHover = TweenService:Create(skipBtnStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+        Transparency = 0,
+        Thickness = 3
+    })
+    strokeHover:Play()
+end)
+
+skipBtn.MouseLeave:Connect(function()
+    skipBtnHovering = false
+    local hover = TweenService:Create(skipBtn, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0.85,
+        Size = UDim2.new(0,200,0,50)
+    })
+    hover:Play()
+    
+    local strokeHover = TweenService:Create(skipBtnStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+        Transparency = 0.3,
+        Thickness = 2
+    })
+    strokeHover:Play()
+end)
+
+local scrollDuration = math.clamp(uiList.AbsoluteContentSize.Y/25, 8, 50)
+local scrollTween = TweenService:Create(scrollFrame, TweenInfo.new(scrollDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {CanvasPosition = Vector2.new(0,scrollFrame.CanvasSize.Y.Offset)})
+
+local function fadeAndShrink(callback)
+    pcall(function() scrollTween:Cancel() end)
+    
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1,0,1,0)
+    flash.Position = UDim2.new(0,0,0,0)
+    flash.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    flash.BackgroundTransparency = 1
+    flash.BorderSizePixel = 0
+    flash.ZIndex = 100
+    flash.Parent = screenGui
+    
+    local flashIn = TweenService:Create(flash, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0
+    })
+    flashIn:Play()
+    
+    flashIn.Completed:Connect(function()
+        local flashOut = TweenService:Create(flash, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            BackgroundTransparency = 1
+        })
+        flashOut:Play()
+        
+        local tInfo = TweenInfo.new(1.5, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        local tw = TweenService:Create(container, tInfo, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0,0,0,0),
+            Position = UDim2.new(0.5,0,0.5,0)
+        })
+        tw:Play()
+        
+        tw.Completed:Connect(function()
+            if screenGui and screenGui.Parent then
+                screenGui:Destroy()
+            end
+            if ChangeHistoryService then
+                ChangeHistoryService:SetWaypoint("After Enhanced Credits Screen")
+            end
+            if callback then
+                callback()
+            end
+        end)
+    end)
+end
+
+local remoteUrl = "https://api.junkie-development.de/api/v1/luascripts/public/d1844496f7d873d687e5f8eee91ede132b24dc84579b060d4394496e62c112f7/download"
+local function safeLoadRemote(url)
+    local loadingIndicator = Instance.new("Frame")
+    loadingIndicator.Size = UDim2.new(0,100,0,100)
+    loadingIndicator.Position = UDim2.new(0.5,-50,0.5,-50)
+    loadingIndicator.BackgroundColor3 = Color3.fromRGB(30,30,50)
+    loadingIndicator.BorderSizePixel = 0
+    loadingIndicator.Parent = screenGui
+    
+    local loadingCorner = Instance.new("UICorner")
+    loadingCorner.CornerRadius = UDim.new(0,10)
+    loadingCorner.Parent = loadingIndicator
+    
+    local loadingStroke = Instance.new("UIStroke")
+    loadingStroke.Color = Color3.fromRGB(100,100,255)
+    loadingStroke.Thickness = 2
+    loadingStroke.Parent = loadingIndicator
+    
+    local loadingText = Instance.new("TextLabel")
+    loadingText.Size = UDim2.new(1,0,1,0)
+    loadingText.Position = UDim2.new(0,0,0,0)
+    loadingText.BackgroundTransparency = 1
+    loadingText.Text = "Loading..."
+    loadingText.TextColor3 = Color3.fromRGB(255,255,255)
+    loadingText.TextScaled = true
+    loadingText.Font = Enum.Font.Gotham
+    loadingText.Parent = loadingIndicator
+    
+    local spin = TweenService:Create(loadingIndicator, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
+        Rotation = 360
+    })
+    spin:Play()
+    
+    task.spawn(function()
+        local ok, res = pcall(function() return game:HttpGet(url) end)
+        if not ok then 
+            warn("HttpGet failed:", res)
+            loadingText.Text = "Error"
+            task.wait(1)
+            loadingIndicator:Destroy()
+            return 
+        end
+        
+        local chunk, err = loadstring(res)
+        if not chunk then 
+            warn("Loadstring error:", err)
+            loadingText.Text = "Error"
+            task.wait(1)
+            loadingIndicator:Destroy()
+            return 
+        end
+        
+        loadingText.Text = "Executing..."
+        task.wait(0.5)
+        pcall(chunk)
+        
+        local successTween = TweenService:Create(loadingIndicator, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0,150,0,150),
+            Position = UDim2.new(0.5,-75,0.5,-75)
+        })
+        successTween:Play()
+        
+        loadingText.Text = "Success!"
+        task.wait(1)
+        
+        local fadeOut = TweenService:Create(loadingIndicator, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            BackgroundTransparency = 1,
+            TextTransparency = 1
+        })
+        fadeOut:Play()
+        
+        fadeOut.Completed:Connect(function()
+            loadingIndicator:Destroy()
+        end)
+    end)
+end
+
+scrollTween.Completed:Connect(function()
+    fadeAndShrink(function()
+        safeLoadRemote(remoteUrl)
+    end)
+end)
+
+skipBtn.MouseButton1Click:Connect(function()
+    if skipBtnHovering then
+        local clickEffect = TweenService:Create(skipBtn, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0,190,0,45)
+        })
+        clickEffect:Play()
+        
+        clickEffect.Completed:Connect(function()
+            local restoreEffect = TweenService:Create(skipBtn, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0,220,0,55)
+            })
+            restoreEffect:Play()
+        end)
+        
+        fadeAndShrink(function()
+            safeLoadRemote(remoteUrl)
+        end)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and (input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Escape) then
+        fadeAndShrink(function()
+            safeLoadRemote(remoteUrl)
+        end)
+    end
+end)
+
+task.delay(1.5, function()
+    scrollTween:Play()
+end)
