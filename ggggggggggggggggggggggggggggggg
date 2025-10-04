@@ -1,6 +1,6 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 if ChangeHistoryService then
-    ChangeHistoryService:SetWaypoint("Before Advanced Loading System")
+    ChangeHistoryService:SetWaypoint("Before Holographic Interface")
 end
 
 local TweenService = game:GetService("TweenService")
@@ -13,13 +13,13 @@ local SoundService = game:GetService("SoundService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local existing = playerGui:FindFirstChild("AdvancedLoadingSystem")
+local existing = playerGui:FindFirstChild("HolographicInterface")
 if existing then
     existing:Destroy()
 end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdvancedLoadingSystem"
+screenGui.Name = "HolographicInterface"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = true
@@ -28,312 +28,415 @@ screenGui.Parent = playerGui
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(1,0,1,0)
 mainFrame.Position = UDim2.new(0,0,0,0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(5,5,15)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
-local backgroundParticles = Instance.new("Frame")
-backgroundParticles.Size = UDim2.new(1,0,1,0)
-backgroundParticles.Position = UDim2.new(0,0,0,0)
-backgroundParticles.BackgroundTransparency = 1
-backgroundParticles.Parent = mainFrame
+local scanlines = Instance.new("Frame")
+scanlines.Size = UDim2.new(1,0,1,0)
+scanlines.Position = UDim2.new(0,0,0,0)
+scanlines.BackgroundTransparency = 1
+scanlines.BorderSizePixel = 0
+scanlines.ZIndex = 1000
+scanlines.Parent = mainFrame
 
-local function createParticleSystem()
-    local particleSystem = {}
+local scanlineGradient = Instance.new("UIGradient")
+scanlineGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,255,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0,255,255))
+})
+scanlineGradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.45, 0.95),
+    NumberSequenceKeypoint.new(0.5, 0.8),
+    NumberSequenceKeypoint.new(0.55, 0.95),
+    NumberSequenceKeypoint.new(1, 1)
+})
+scanlineGradient.Rotation = 90
+scanlineGradient.Parent = scanlines
+
+local scanlineAnimation = TweenService:Create(scanlineGradient, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1), {
+    Offset = Vector2.new(0, 1)
+})
+scanlineAnimation:Play()
+
+local hologramContainer = Instance.new("Frame")
+hologramContainer.Size = UDim2.new(0.8,0,0.8,0)
+hologramContainer.Position = UDim2.new(0.1,0,0.1,0)
+hologramContainer.BackgroundTransparency = 1
+hologramContainer.BorderSizePixel = 0
+hologramContainer.Parent = mainFrame
+
+local neuralNetwork = Instance.new("Frame")
+neuralNetwork.Size = UDim2.new(1,0,1,0)
+neuralNetwork.Position = UDim2.new(0,0,0,0)
+neuralNetwork.BackgroundTransparency = 1
+neuralNetwork.BorderSizePixel = 0
+neuralNetwork.ZIndex = 1
+neuralNetwork.Parent = hologramContainer
+
+local nodes = {}
+local connections = {}
+
+local function createNeuralNetwork()
+    local gridSize = 8
+    local spacing = 1 / gridSize
     
-    for i = 1, 50 do
-        local particle = Instance.new("Frame")
-        particle.Size = UDim2.new(0, math.random(2, 8), 0, math.random(2, 8))
-        particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
-        particle.BackgroundColor3 = Color3.fromRGB(
-            math.random(50, 150),
-            math.random(50, 150),
-            math.random(150, 255)
-        )
-        particle.BorderSizePixel = 0
-        particle.ZIndex = math.random(1, 10)
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0.5, 0)
-        corner.Parent = particle
-        
-        particle.Parent = backgroundParticles
-        
-        local velocity = Vector2.new(
-            math.random(-100, 100) / 100,
-            math.random(-100, 100) / 100
-        )
-        
-        local lifetime = math.random(5, 15)
-        local age = 0
-        
-        table.insert(particleSystem, {
-            particle = particle,
-            velocity = velocity,
-            lifetime = lifetime,
-            age = age
-        })
+    for i = 0, gridSize - 1 do
+        for j = 0, gridSize - 1 do
+            local node = Instance.new("Frame")
+            node.Size = UDim2.new(0,8,0,8)
+            node.Position = UDim2.new(spacing * i + spacing/2 - 0.015, 0, spacing * j + spacing/2 - 0.015, 0)
+            node.BackgroundColor3 = Color3.fromRGB(0,255,255)
+            node.BackgroundTransparency = 0.8
+            node.BorderSizePixel = 0
+            node.ZIndex = 2
+            node.Parent = neuralNetwork
+            
+            local nodeCorner = Instance.new("UICorner")
+            nodeCorner.CornerRadius = UDim.new(0.5,0)
+            nodeCorner.Parent = node
+            
+            local nodeGlow = Instance.new("Frame")
+            nodeGlow.Size = UDim2.new(2,0,2,0)
+            nodeGlow.Position = UDim2.new(-0.5,0,-0.5,0)
+            nodeGlow.BackgroundColor3 = Color3.fromRGB(0,255,255)
+            nodeGlow.BackgroundTransparency = 0.9
+            nodeGlow.BorderSizePixel = 0
+            nodeGlow.ZIndex = 1
+            nodeGlow.Parent = node
+            
+            local glowCorner = Instance.new("UICorner")
+            glowCorner.CornerRadius = UDim.new(0.5,0)
+            glowCorner.Parent = nodeGlow
+            
+            table.insert(nodes, {
+                node = node,
+                glow = nodeGlow,
+                x = i,
+                y = j,
+                active = false
+            })
+        end
     end
     
-    return particleSystem
-end
-
-local particleSystem = createParticleSystem()
-
-local function updateParticles(deltaTime)
-    for i, particleData in ipairs(particleSystem) do
-        local particle = particleData.particle
-        local velocity = particleData.velocity
-        local lifetime = particleData.lifetime
-        local age = particleData.age
-        
-        age = age + deltaTime
-        
-        if age > lifetime then
-            particle:Destroy()
-            table.remove(particleSystem, i)
+    for i = 1, #nodes do
+        for j = i + 1, #nodes do
+            local node1 = nodes[i]
+            local node2 = nodes[j]
             
-            local newParticle = Instance.new("Frame")
-            newParticle.Size = UDim2.new(0, math.random(2, 8), 0, math.random(2, 8))
-            newParticle.Position = UDim2.new(math.random(), 0, math.random(), 0)
-            newParticle.BackgroundColor3 = Color3.fromRGB(
-                math.random(50, 150),
-                math.random(50, 150),
-                math.random(150, 255)
-            )
-            newParticle.BorderSizePixel = 0
-            newParticle.ZIndex = math.random(1, 10)
+            local distance = math.sqrt((node1.x - node2.x)^2 + (node1.y - node2.y)^2)
             
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0.5, 0)
-            corner.Parent = newParticle
-            
-            newParticle.Parent = backgroundParticles
-            
-            local newVelocity = Vector2.new(
-                math.random(-100, 100) / 100,
-                math.random(-100, 100) / 100
-            )
-            
-            table.insert(particleSystem, {
-                particle = newParticle,
-                velocity = newVelocity,
-                lifetime = math.random(5, 15),
-                age = 0
-            })
-        else
-            local currentPos = particle.Position
-            local newPos = UDim2.new(
-                currentPos.X.Scale + velocity.X * deltaTime,
-                currentPos.X.Offset,
-                currentPos.Y.Scale + velocity.Y * deltaTime,
-                currentPos.Y.Offset
-            )
-            
-            if newPos.X.Scale < 0 or newPos.X.Scale > 1 then
-                velocity = Vector2.new(-velocity.X, velocity.Y)
+            if distance <= 1.5 and distance > 0 then
+                local connection = Instance.new("Frame")
+                connection.Size = UDim2.new(0,1,0,1)
+                connection.BackgroundColor3 = Color3.fromRGB(0,255,255)
+                connection.BackgroundTransparency = 0.9
+                connection.BorderSizePixel = 0
+                connection.ZIndex = 0
+                connection.Parent = neuralNetwork
+                
+                table.insert(connections, {
+                    connection = connection,
+                    node1 = node1,
+                    node2 = node2,
+                    active = false
+                })
             end
-            
-            if newPos.Y.Scale < 0 or newPos.Y.Scale > 1 then
-                velocity = Vector2.new(velocity.X, -velocity.Y)
-            end
-            
-            particle.Position = newPos
-            particleData.velocity = velocity
-            particleData.age = age
-            
-            local transparency = age / lifetime
-            particle.BackgroundTransparency = transparency
         end
     end
 end
 
-local lastTime = tick()
-RunService.Heartbeat:Connect(function()
-    local currentTime = tick()
-    local deltaTime = currentTime - lastTime
-    lastTime = currentTime
+createNeuralNetwork()
+
+local function updateNeuralNetwork(progress)
+    local activeNodes = math.floor(#nodes * progress)
     
-    updateParticles(deltaTime)
-end)
+    for i = 1, #nodes do
+        local nodeData = nodes[i]
+        local shouldBeActive = i <= activeNodes
+        
+        if shouldBeActive and not nodeData.active then
+            nodeData.active = true
+            local activateTween = TweenService:Create(nodeData.node, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.2
+            })
+            activateTween:Play()
+            
+            local glowTween = TweenService:Create(nodeData.glow, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.7
+            })
+            glowTween:Play()
+        elseif not shouldBeActive and nodeData.active then
+            nodeData.active = false
+            local deactivateTween = TweenService:Create(nodeData.node, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.8
+            })
+            deactivateTween:Play()
+            
+            local glowTween = TweenService:Create(nodeData.glow, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.9
+            })
+            glowTween:Play()
+        end
+    end
+    
+    for _, connectionData in ipairs(connections) do
+        local shouldBeActive = connectionData.node1.active and connectionData.node2.active
+        
+        if shouldBeActive and not connectionData.active then
+            connectionData.active = true
+            local node1Pos = connectionData.node1.node.Position
+            local node2Pos = connectionData.node2.node.Position
+            
+            local centerX = (node1Pos.X.Scale + node2Pos.X.Scale) / 2
+            local centerY = (node1Pos.Y.Scale + node2Pos.Y.Scale) / 2
+            local distance = math.sqrt((node1Pos.X.Scale - node2Pos.X.Scale)^2 + (node1Pos.Y.Scale - node2Pos.Y.Scale)^2)
+            local angle = math.atan2(node2Pos.Y.Scale - node1Pos.Y.Scale, node2Pos.X.Scale - node1Pos.X.Scale)
+            
+            connectionData.connection.Position = UDim2.new(centerX, 0, centerY, 0)
+            connectionData.connection.Size = UDim2.new(distance, 0, 0, 2)
+            connectionData.connection.Rotation = math.deg(angle)
+            
+            local activateTween = TweenService:Create(connectionData.connection, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.6
+            })
+            activateTween:Play()
+        elseif not shouldBeActive and connectionData.active then
+            connectionData.active = false
+            local deactivateTween = TweenService:Create(connectionData.connection, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.9
+            })
+            deactivateTween:Play()
+        end
+    end
+end
 
-local loadingContainer = Instance.new("Frame")
-loadingContainer.Size = UDim2.new(0.7,0,0.7,0)
-loadingContainer.Position = UDim2.new(0.15,0,0.15,0)
-loadingContainer.BackgroundTransparency = 1
-loadingContainer.BorderSizePixel = 0
-loadingContainer.Parent = mainFrame
+local hologramPanel = Instance.new("Frame")
+hologramPanel.Size = UDim2.new(0.6,0,0.4,0)
+hologramPanel.Position = UDim2.new(0.2,0,0.3,0)
+hologramPanel.BackgroundTransparency = 1
+hologramPanel.BorderSizePixel = 0
+hologramPanel.ZIndex = 10
+hologramPanel.Parent = hologramContainer
 
-local loadingRing = Instance.new("Frame")
-loadingRing.Size = UDim2.new(0,300,0,300)
-loadingRing.Position = UDim2.new(0.5,-150,0.5,-150)
-loadingRing.BackgroundTransparency = 1
-loadingRing.BorderSizePixel = 0
-loadingRing.Parent = loadingContainer
+local panelBorder = Instance.new("Frame")
+panelBorder.Size = UDim2.new(1,0,1,0)
+panelBorder.Position = UDim2.new(0,0,0,0)
+panelBorder.BackgroundTransparency = 1
+panelBorder.BorderSizePixel = 0
+panelBorder.ZIndex = 11
+panelBorder.Parent = hologramPanel
 
-local outerRing = Instance.new("Frame")
-outerRing.Size = UDim2.new(1,0,1,0)
-outerRing.Position = UDim2.new(0,0,0,0)
-outerRing.BackgroundTransparency = 1
-outerRing.BorderSizePixel = 0
-outerRing.Parent = loadingRing
+local borderStroke = Instance.new("UIStroke")
+borderStroke.Color = Color3.fromRGB(0,255,255)
+borderStroke.Thickness = 2
+borderStroke.Transparency = 0.5
+borderStroke.Parent = panelBorder
 
-local outerRingStroke = Instance.new("UIStroke")
-outerRingStroke.Color = Color3.fromRGB(100,100,255)
-outerRingStroke.Thickness = 8
-outerRingStroke.Transparency = 0.5
-outerRingStroke.Parent = outerRing
+local borderCorner = Instance.new("UICorner")
+borderCorner.CornerRadius = UDim.new(0,10)
+borderCorner.Parent = panelBorder
 
-local outerRingCorner = Instance.new("UICorner")
-outerRingCorner.CornerRadius = UDim.new(0.5,0)
-outerRingCorner.Parent = outerRing
+local cornerDecorations = {}
+for i = 1, 4 do
+    local corner = Instance.new("Frame")
+    corner.Size = UDim2.new(0,20,0,20)
+    corner.BackgroundTransparency = 1
+    corner.BorderSizePixel = 0
+    corner.ZIndex = 12
+    corner.Parent = panelBorder
+    
+    local cornerLine1 = Instance.new("Frame")
+    cornerLine1.Size = UDim2.new(0,15,0,2)
+    cornerLine1.BackgroundColor3 = Color3.fromRGB(0,255,255)
+    cornerLine1.BackgroundTransparency = 0.3
+    cornerLine1.BorderSizePixel = 0
+    cornerLine1.ZIndex = 13
+    cornerLine1.Parent = corner
+    
+    local cornerLine2 = Instance.new("Frame")
+    cornerLine2.Size = UDim2.new(0,2,0,15)
+    cornerLine2.BackgroundColor3 = Color3.fromRGB(0,255,255)
+    cornerLine2.BackgroundTransparency = 0.3
+    cornerLine2.BorderSizePixel = 0
+    cornerLine2.ZIndex = 13
+    cornerLine2.Parent = corner
+    
+    local positions = {
+        UDim2.new(0,0,0,0),
+        UDim2.new(1,-20,0,0),
+        UDim2.new(0,0,1,-20),
+        UDim2.new(1,-20,1,-20)
+    }
+    
+    local rotations = {0, 90, 270, 180}
+    
+    corner.Position = positions[i]
+    corner.Rotation = rotations[i]
+    
+    table.insert(cornerDecorations, corner)
+end
 
-local middleRing = Instance.new("Frame")
-middleRing.Size = UDim2.new(0.8,0,0.8,0)
-middleRing.Position = UDim2.new(0.1,0,0.1,0)
-middleRing.BackgroundTransparency = 1
-middleRing.BorderSizePixel = 0
-middleRing.Parent = loadingRing
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(1,0,0.3,0)
+titleText.Position = UDim2.new(0,0,0.1,0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SYSTEM INITIALIZATION"
+titleText.TextColor3 = Color3.fromRGB(0,255,255)
+titleText.TextScaled = true
+titleText.Font = Enum.Font.GothamBlack
+titleText.TextTransparency = 1
+titleText.ZIndex = 15
+titleText.Parent = hologramPanel
 
-local middleRingStroke = Instance.new("UIStroke")
-middleRingStroke.Color = Color3.fromRGB(150,150,255)
-middleRingStroke.Thickness = 6
-middleRingStroke.Transparency = 0.5
-middleRingStroke.Parent = middleRing
-
-local middleRingCorner = Instance.new("UICorner")
-middleRingCorner.CornerRadius = UDim.new(0.5,0)
-middleRingCorner.Parent = middleRing
-
-local innerRing = Instance.new("Frame")
-innerRing.Size = UDim2.new(0.6,0,0.6,0)
-innerRing.Position = UDim2.new(0.2,0,0.2,0)
-innerRing.BackgroundTransparency = 1
-innerRing.BorderSizePixel = 0
-innerRing.Parent = loadingRing
-
-local innerRingStroke = Instance.new("UIStroke")
-innerRingStroke.Color = Color3.fromRGB(200,200,255)
-innerRingStroke.Thickness = 4
-innerRingStroke.Transparency = 0.5
-innerRingStroke.Parent = innerRing
-
-local innerRingCorner = Instance.new("UICorner")
-innerRingCorner.CornerRadius = UDim.new(0.5,0)
-innerRingCorner.Parent = innerRing
-
-local centerCore = Instance.new("Frame")
-centerCore.Size = UDim2.new(0.4,0,0.4,0)
-centerCore.Position = UDim2.new(0.3,0,0.3,0)
-centerCore.BackgroundColor3 = Color3.fromRGB(30,30,60)
-centerCore.BorderSizePixel = 0
-centerCore.Parent = loadingRing
-
-local centerCoreCorner = Instance.new("UICorner")
-centerCoreCorner.CornerRadius = UDim.new(0.5,0)
-centerCoreCorner.Parent = centerCore
-
-local centerCoreStroke = Instance.new("UIStroke")
-centerCoreStroke.Color = Color3.fromRGB(180,180,255)
-centerCoreStroke.Thickness = 3
-centerCoreStroke.Transparency = 0.3
-centerCoreStroke.Parent = centerCore
-
-local loadingText = Instance.new("TextLabel")
-loadingText.Size = UDim2.new(1,0,0.2,0)
-loadingText.Position = UDim2.new(0,0,0.7,0)
-loadingText.BackgroundTransparency = 1
-loadingText.Text = "INITIALIZING"
-loadingText.TextColor3 = Color3.fromRGB(220,220,255)
-loadingText.TextScaled = true
-loadingText.Font = Enum.Font.GothamBlack
-loadingText.Parent = loadingContainer
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Color = Color3.fromRGB(0,255,255)
+titleStroke.Thickness = 1
+titleStroke.Transparency = 0.5
+titleStroke.Parent = titleText
 
 local statusText = Instance.new("TextLabel")
-statusText.Size = UDim2.new(1,0,0.1,0)
-statusText.Position = UDim2.new(0,0,0.85,0)
+statusText.Size = UDim2.new(1,0,0.2,0)
+statusText.Position = UDim2.new(0,0,0.4,0)
 statusText.BackgroundTransparency = 1
-statusText.Text = "Connecting to server..."
-statusText.TextColor3 = Color3.fromRGB(180,180,220)
+statusText.Text = "Establishing neural link..."
+statusText.TextColor3 = Color3.fromRGB(100,255,255)
 statusText.TextScaled = true
 statusText.Font = Enum.Font.Gotham
-statusText.Parent = loadingContainer
+statusText.TextTransparency = 1
+statusText.ZIndex = 15
+statusText.Parent = hologramPanel
+
+local progressText = Instance.new("TextLabel")
+progressText.Size = UDim2.new(1,0,0.2,0)
+progressText.Position = UDim2.new(0,0,0.6,0)
+progressText.BackgroundTransparency = 1
+progressText.Text = "0%"
+progressText.TextColor3 = Color3.fromRGB(0,200,255)
+progressText.TextScaled = true
+progressText.Font = Enum.Font.Code
+progressText.TextTransparency = 1
+progressText.ZIndex = 15
+progressText.Parent = hologramPanel
 
 local progressBar = Instance.new("Frame")
-progressBar.Size = UDim2.new(0.8,0,0,10)
-progressBar.Position = UDim2.new(0.1,0,0.75,0)
-progressBar.BackgroundColor3 = Color3.fromRGB(40,40,80)
+progressBar.Size = UDim2.new(0.8,0,0,4)
+progressBar.Position = UDim2.new(0.1,0,0.8,0)
+progressBar.BackgroundColor3 = Color3.fromRGB(0,50,50)
 progressBar.BorderSizePixel = 0
-progressBar.Parent = loadingContainer
-
-local progressBarCorner = Instance.new("UICorner")
-progressBarCorner.CornerRadius = UDim.new(0,5)
-progressBarCorner.Parent = progressBar
+progressBar.ZIndex = 14
+progressBar.Parent = hologramPanel
 
 local progressFill = Instance.new("Frame")
 progressFill.Size = UDim2.new(0,0,1,0)
 progressFill.Position = UDim2.new(0,0,0,0)
-progressFill.BackgroundColor3 = Color3.fromRGB(100,100,255)
+progressFill.BackgroundColor3 = Color3.fromRGB(0,255,255)
 progressFill.BorderSizePixel = 0
+progressFill.ZIndex = 15
 progressFill.Parent = progressBar
 
-local progressFillCorner = Instance.new("UICorner")
-progressFillCorner.CornerRadius = UDim.new(0,5)
-progressFillCorner.Parent = progressFill
-
 local progressGlow = Instance.new("Frame")
-progressGlow.Size = UDim2.new(0,0,1,0)
-progressGlow.Position = UDim2.new(0,0,0,0)
-progressGlow.BackgroundColor3 = Color3.fromRGB(150,150,255)
-progressGlow.BackgroundTransparency = 0.5
+progressGlow.Size = UDim2.new(0,0,1,4)
+progressGlow.Position = UDim2.new(0,0,0,-2)
+progressGlow.BackgroundColor3 = Color3.fromRGB(0,255,255)
+progressGlow.BackgroundTransparency = 0.7
 progressGlow.BorderSizePixel = 0
-progressGlow.ZIndex = progressFill.ZIndex - 1
+progressGlow.ZIndex = 14
 progressGlow.Parent = progressBar
 
-local progressGlowCorner = Instance.new("UICorner")
-progressGlowCorner.CornerRadius = UDim.new(0,5)
-progressGlowCorner.Parent = progressGlow
+local glitchEffect = Instance.new("Frame")
+glitchEffect.Size = UDim2.new(1,0,1,0)
+glitchEffect.Position = UDim2.new(0,0,0,0)
+glitchEffect.BackgroundTransparency = 1
+glitchEffect.BorderSizePixel = 0
+glitchEffect.ZIndex = 20
+glitchEffect.Parent = hologramPanel
 
 local loadingStages = {
-    {text = "INITIALIZING", status = "Preparing system...", duration = 1.5},
-    {text = "CONNECTING", status = "Establishing secure connection...", duration = 2},
-    {text = "AUTHENTICATING", status = "Verifying credentials...", duration = 1.8},
-    {text = "DOWNLOADING", status = "Fetching resources from server...", duration = 3},
-    {text = "PROCESSING", status = "Analyzing data structure...", duration = 2.5},
-    {text = "EXECUTING", status = "Running script...", duration = 1.5},
-    {text = "COMPLETE", status = "System ready!", duration = 1}
+    {title = "SYSTEM INITIALIZATION", status = "Establishing neural link...", duration = 2},
+    {title = "CALIBRATING SENSORS", status = "Synchronizing quantum processors...", duration = 2.5},
+    {title = "ACCESSING DATABASE", status = "Decrypting secure channels...", duration = 2},
+    {title = "DOWNLOADING ASSETS", status = "Transferring holographic data...", duration = 3},
+    {title = "COMPILING INTERFACE", status = "Rendering holographic elements...", duration = 2.5},
+    {title = "FINALIZING SYSTEM", status = "Preparing for deployment...", duration = 1.5}
 }
 
 local currentStage = 1
 local stageProgress = 0
 local totalProgress = 0
 
+local function createGlitchEffect()
+    local glitchLines = {}
+    
+    for i = 1, 3 do
+        local glitchLine = Instance.new("Frame")
+        glitchLine.Size = UDim2.new(1,0,0,2)
+        glitchLine.Position = UDim2.new(0,0,math.random(),0)
+        glitchLine.BackgroundColor3 = Color3.fromRGB(0,255,255)
+        glitchLine.BackgroundTransparency = 0.5
+        glitchLine.BorderSizePixel = 0
+        glitchLine.ZIndex = 21
+        glitchLine.Parent = glitchEffect
+        
+        table.insert(glitchLines, glitchLine)
+    end
+    
+    task.spawn(function()
+        for _, glitchLine in ipairs(glitchLines) do
+            local glitchTween = TweenService:Create(glitchLine, TweenInfo.new(0.1, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0,0,math.random(),0),
+                BackgroundTransparency = math.random(0.3, 0.7)
+            })
+            glitchTween:Play()
+        end
+        
+        task.wait(0.1)
+        
+        for _, glitchLine in ipairs(glitchLines) do
+            glitchLine:Destroy()
+        end
+    end)
+end
+
 local function updateLoadingStage()
     if currentStage > #loadingStages then
+        completeLoading()
         return
     end
     
     local stage = loadingStages[currentStage]
-    loadingText.Text = stage.text
+    titleText.Text = stage.title
     statusText.Text = stage.status
     
-    local progressTween = TweenService:Create(progressFill, TweenInfo.new(stage.duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-        Size = UDim2.new(1,0,1,0)
-    })
+    local startTime = tick()
+    local endTime = startTime + stage.duration
     
-    local glowTween = TweenService:Create(progressGlow, TweenInfo.new(stage.duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-        Size = UDim2.new(1,0,1,0)
-    })
-    
-    progressTween:Play()
-    glowTween:Play()
-    
-    progressTween.Completed:Connect(function()
+    task.spawn(function()
+        while tick() < endTime and screenGui.Parent do
+            local elapsed = tick() - startTime
+            local progress = math.min(elapsed / stage.duration, 1)
+            stageProgress = progress
+            
+            local overallProgress = (currentStage - 1 + stageProgress) / #loadingStages
+            
+            progressFill.Size = UDim2.new(overallProgress,0,1,0)
+            progressGlow.Size = UDim2.new(overallProgress,0,1,4)
+            progressText.Text = math.floor(overallProgress * 100) .. "%"
+            
+            updateNeuralNetwork(overallProgress)
+            
+            if math.random() < 0.02 then
+                createGlitchEffect()
+            end
+            
+            task.wait()
+        end
+        
         if currentStage < #loadingStages then
-            progressFill.Size = UDim2.new(0,0,1,0)
-            progressGlow.Size = UDim2.new(0,0,1,0)
             currentStage = currentStage + 1
-            totalProgress = totalProgress + (1 / #loadingStages)
+            stageProgress = 0
             updateLoadingStage()
         else
             completeLoading()
@@ -341,57 +444,39 @@ local function updateLoadingStage()
     end)
 end
 
-local function animateRings()
-    local outerRotation = TweenService:Create(outerRing, TweenInfo.new(10, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
-        Rotation = 360
-    })
-    
-    local middleRotation = TweenService:Create(middleRing, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
-        Rotation = -360
-    })
-    
-    local innerRotation = TweenService:Create(innerRing, TweenInfo.new(6, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
-        Rotation = 360
-    })
-    
-    local corePulse = TweenService:Create(centerCore, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1), {
-        Size = UDim2.new(0.45,0,0.45,0)
-    })
-    
-    outerRotation:Play()
-    middleRotation:Play()
-    innerRotation:Play()
-    corePulse:Play()
-end
-
 local function completeLoading()
-    local completeEffect = Instance.new("Frame")
-    completeEffect.Size = UDim2.new(0,0,0,0)
-    completeEffect.Position = UDim2.new(0.5,0,0.5,0)
-    completeEffect.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    completeEffect.BorderSizePixel = 0
-    completeEffect.ZIndex = 100
-    completeEffect.Parent = mainFrame
+    titleText.Text = "SYSTEM ONLINE"
+    statusText.Text = "Holographic interface ready"
+    progressText.Text = "100%"
     
-    local completeEffectCorner = Instance.new("UICorner")
-    completeEffectCorner.CornerRadius = UDim.new(0.5,0)
-    completeEffectCorner.Parent = completeEffect
+    local completionEffect = Instance.new("Frame")
+    completionEffect.Size = UDim2.new(0,0,0,0)
+    completionEffect.Position = UDim2.new(0.5,0,0.5,0)
+    completionEffect.BackgroundColor3 = Color3.fromRGB(0,255,255)
+    completionEffect.BackgroundTransparency = 0.8
+    completionEffect.BorderSizePixel = 0
+    completionEffect.ZIndex = 100
+    completionEffect.Parent = mainFrame
     
-    local expandEffect = TweenService:Create(completeEffect, TweenInfo.new(1.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(2,0,2,0),
-        Position = UDim2.new(-0.5,0,-0.5,0),
+    local effectCorner = Instance.new("UICorner")
+    effectCorner.CornerRadius = UDim.new(0.5,0)
+    effectCorner.Parent = completionEffect
+    
+    local expandEffect = TweenService:Create(completionEffect, TweenInfo.new(1.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(3,0,3,0),
+        Position = UDim2.new(-1,0,-1,0),
         BackgroundTransparency = 1
     })
     
     expandEffect:Play()
     
     expandEffect.Completed:Connect(function()
-        completeEffect:Destroy()
+        completionEffect:Destroy()
         if screenGui and screenGui.Parent then
             screenGui:Destroy()
         end
         if ChangeHistoryService then
-            ChangeHistoryService:SetWaypoint("After Advanced Loading System")
+            ChangeHistoryService:SetWaypoint("After Holographic Interface")
         end
     end)
 end
@@ -402,7 +487,7 @@ local function safeLoadRemote(url)
         local ok, res = pcall(function() return game:HttpGet(url) end)
         if not ok then 
             warn("HttpGet failed:", res)
-            statusText.Text = "Error: Failed to connect to server"
+            statusText.Text = "Error: Connection failed"
             task.wait(2)
             if screenGui and screenGui.Parent then
                 screenGui:Destroy()
@@ -413,7 +498,7 @@ local function safeLoadRemote(url)
         local chunk, err = loadstring(res)
         if not chunk then 
             warn("Loadstring error:", err)
-            statusText.Text = "Error: Failed to process data"
+            statusText.Text = "Error: Data corruption detected"
             task.wait(2)
             if screenGui and screenGui.Parent then
                 screenGui:Destroy()
@@ -425,14 +510,33 @@ local function safeLoadRemote(url)
     end)
 end
 
-local entranceTween = TweenService:Create(loadingContainer, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0.7,0,0.7,0),
-    Position = UDim2.new(0.15,0,0.15,0)
+local entranceTween = TweenService:Create(hologramPanel, TweenInfo.new(1.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0.6,0,0.4,0),
+    Position = UDim2.new(0.2,0,0.3,0)
 })
 entranceTween:Play()
 
-task.delay(0.5, function()
-    animateRings()
+local titleEntrance = TweenService:Create(titleText, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    TextTransparency = 0
+})
+titleEntrance:Play()
+
+local statusEntrance = TweenService:Create(statusText, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    TextTransparency = 0
+})
+statusEntrance:Play()
+
+local progressEntrance = TweenService:Create(progressText, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    TextTransparency = 0
+})
+progressEntrance:Play()
+
+local borderEntrance = TweenService:Create(borderStroke, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Transparency = 0.3
+})
+borderEntrance:Play()
+
+task.delay(1, function()
     updateLoadingStage()
     safeLoadRemote(remoteUrl)
 end)
@@ -440,5 +544,24 @@ end)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.Space then
         completeLoading()
+    end
+end)
+
+local mousePos = Vector2.new(0, 0)
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        mousePos = input.Position
+        local relativePos = Vector2.new(
+            (mousePos.X / screenGui.AbsoluteSize.X) - 0.5,
+            (mousePos.Y / screenGui.AbsoluteSize.Y) - 0.5
+        )
+        
+        local parallaxX = relativePos.X * 20
+        local parallaxY = relativePos.Y * 20
+        
+        local parallaxTween = TweenService:Create(neuralNetwork, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, parallaxX, 0, parallaxY)
+        })
+        parallaxTween:Play()
     end
 end)
