@@ -21,7 +21,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local AdminUserIDs = { 3307721575, 3325270002, 9145208990, 974723668, 5309041855 }
+local AdminUserIDs = { 3307721575, 3325270002, 9145208990, 974723668, 5309041855, 9296450955 }
 
 --==============================================================================
 --|| STATE MANAGEMENT
