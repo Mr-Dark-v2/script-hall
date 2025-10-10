@@ -7,7 +7,7 @@ local SERVER_SEND_URL  = "https://8775b734-9c08-4b7f-932a-e8df8538b275-00-1xt67y
 
 -- [!] TIMING CONFIGURATION
 local NETWORK_REFRESH_RATE = 1
-local CLIENT_TIMEOUT = 4
+local CLIENT_TIMEOUT = 6
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
